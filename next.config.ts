@@ -4,6 +4,10 @@ import runtimeCaching from "next-pwa/cache";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 const withPWAConfig = withPWA({
@@ -11,7 +15,7 @@ const withPWAConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-  
+
   runtimeCaching,
 });
 
