@@ -26,14 +26,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseBrowserClient();
 
     let isMounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data } : any) => {
       if (!isMounted) return;
       setSession(data.session ?? null);
       setUser(data.session?.user ?? null);
       setStatus(data.session ? "authenticated" : "unauthenticated");
     });
 
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data } : any) => {
       if (!isMounted) return;
       setUser(data.user ?? null);
       if (data.user) {
