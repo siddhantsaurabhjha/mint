@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GlassCard from "@/components/GlassCard";
 import ScreenHeader from "@/components/ScreenHeader";
 import { useAuth } from "@/components/AuthProvider";
 
-export default function LoginPage() {
+function LoginContent() {
   const { signIn, status } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -90,5 +90,40 @@ export default function LoginPage() {
         Access is limited to the two approved accounts.
       </div>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6">
+      <ScreenHeader
+        title="Welcome Back"
+        subtitle="Sign in to your private neon space."
+      />
+      <GlassCard>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="h-3 w-24 rounded-full bg-white/10" />
+            <div className="h-11 w-full rounded-2xl bg-white/5" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 w-24 rounded-full bg-white/10" />
+            <div className="h-11 w-full rounded-2xl bg-white/5" />
+          </div>
+          <div className="h-11 w-full rounded-2xl border border-white/20 bg-white/10" />
+        </div>
+      </GlassCard>
+      <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/60">
+        Access is limited to the two approved accounts.
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginContent />
+    </Suspense>
   );
 }
