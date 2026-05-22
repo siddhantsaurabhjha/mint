@@ -1,6 +1,7 @@
 import GlassCard from "@/components/GlassCard";
 import ScreenHeader from "@/components/ScreenHeader";
 import ThemeSelector from "@/components/ThemeSelector";
+import StoriesRail from "@/components/stories/StoriesRail";
 
 const moments = [
   {
@@ -32,6 +33,16 @@ export default function Home() {
           </div>
         }
       />
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-white">Stories</h3>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] uppercase tracking-[0.2em] text-white/60">
+            Live
+          </span>
+        </div>
+        <StoriesRail showEmptyState />
+      </section>
 
       <GlassCard className="bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.15),_transparent_55%)]">
         <div className="flex items-start justify-between gap-4">

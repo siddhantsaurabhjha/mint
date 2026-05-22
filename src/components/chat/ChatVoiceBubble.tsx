@@ -5,15 +5,34 @@ import type { ChatMessage } from "@/lib/chat/types";
 import { formatDuration } from "@/lib/media/format";
 
 const speeds = [1, 1.5, 2];
+const WAVEFORM_SAMPLES = 36;
 
 export default function ChatVoiceBubble({ message }: { message: ChatMessage }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const duration = useMemo(() => {
     const meta = message.media_meta as Record<string, unknown> | null | undefined;
     const value = meta && typeof meta.duration === "number" ? meta.duration : 0;
     return value;
+  }, [message.media_meta]);
+  const waveform = useMemo(() => {
+    const meta = message.media_meta as Record<string, unknown> | null | undefined;
+    const values = meta && Array.isArray(meta.waveform) ? meta.waveform : [];
+    const normalized = values
+      .filter((value) => typeof value === "number")
+      .map((value) => Math.min(1, Math.max(0.1, value as number)));
+    if (normalized.length >= WAVEFORM_SAMPLES) {
+      return normalized.slice(0, WAVEFORM_SAMPLES);
+    }
+    if (normalized.length > 0) {
+      const fill = new Array(WAVEFORM_SAMPLES - normalized.length).fill(
+        normalized[normalized.length - 1]
+      );
+      return normalized.concat(fill);
+    }
+    return new Array(WAVEFORM_SAMPLES).fill(0.2);
   }, [message.media_meta]);
 
   useEffect(() => {
@@ -21,9 +40,14 @@ export default function ChatVoiceBubble({ message }: { message: ChatMessage }) {
     if (!audio) return;
 
     const handleEnd = () => setIsPlaying(false);
+    const handleTime = () => setCurrentTime(audio.currentTime);
     audio.addEventListener("ended", handleEnd);
+    audio.addEventListener("timeupdate", handleTime);
 
-    return () => audio.removeEventListener("ended", handleEnd);
+    return () => {
+      audio.removeEventListener("ended", handleEnd);
+      audio.removeEventListener("timeupdate", handleTime);
+    };
   }, []);
 
   const togglePlay = () => {
@@ -50,6 +74,11 @@ export default function ChatVoiceBubble({ message }: { message: ChatMessage }) {
 
   if (!message.media_url) return null;
 
+  const effectiveDuration = duration || audioRef.current?.duration || 0;
+  const progress = effectiveDuration
+    ? Math.min(1, currentTime / effectiveDuration)
+    : 0;
+
   return (
     <div className="flex items-center gap-3">
       <audio ref={audioRef} src={message.media_url} preload="metadata" />
@@ -61,11 +90,24 @@ export default function ChatVoiceBubble({ message }: { message: ChatMessage }) {
         {isPlaying ? "Pause" : "Play"}
       </button>
       <div className="flex-1">
-        <div className="h-1.5 w-full rounded-full bg-white/10">
-          <div className="h-full w-2/3 rounded-full bg-white/40" />
+        <div className="flex h-8 items-end gap-1">
+          {waveform.map((value, index) => {
+            const height = Math.max(6, Math.round(value * 26));
+            const threshold = (index + 1) / waveform.length;
+            const isActive = threshold <= progress;
+            return (
+              <span
+                key={`wave-${index}`}
+                className={`w-1 rounded-full transition-all ${
+                  isActive ? "bg-white" : "bg-white/35"
+                }`}
+                style={{ height }}
+              />
+            );
+          })}
         </div>
         <p className="mt-1 text-[11px] text-white/50">
-          Voice note • {duration ? formatDuration(duration) : "--:--"}
+          Voice note • {effectiveDuration ? formatDuration(effectiveDuration) : "--:--"}
         </p>
       </div>
       <button

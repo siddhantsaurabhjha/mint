@@ -7,6 +7,7 @@ import type { ChatMessage } from "@/lib/chat/types";
 import { MESSAGE_LIMIT, ROOM_ID } from "@/lib/chat/constants";
 import { readCachedMessages, writeCachedMessages } from "@/lib/chat/cache";
 import { isAllowedEmail, resolveUsernameFromEmail } from "@/lib/auth";
+import { sendPushNotification } from "@/lib/pwa/push";
 
 const TYPING_EVENT = "typing";
 const REACTION_EVENT = "reaction";
@@ -333,6 +334,14 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
 
       if (!error && data) {
         upsertMessages([data as ChatMessage]);
+        await sendPushNotification({
+          title: "New message",
+          body: body || "Sent a media message",
+          url: "/chat",
+          tag: "chat-message",
+          senderId: userId,
+          badge: 1,
+        });
       }
 
       return { data, error };

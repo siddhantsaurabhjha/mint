@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import AuthGate from "@/components/AuthGate";
 import BottomNav from "@/components/BottomNav";
+import PwaManager from "@/components/PwaManager";
 import SplashScreen from "@/components/SplashScreen";
 
 const pageTransition = {
@@ -37,6 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </motion.main>
       </AnimatePresence>
+      <PwaManager />
       {isLogin ? null : <BottomNav />}
     </div>
   );

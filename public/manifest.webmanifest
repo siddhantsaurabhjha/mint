@@ -5,6 +5,8 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "id": "/",
   "background_color": "#0b0c14",
   "theme_color": "#0b0c14",
   "orientation": "portrait",
@@ -20,6 +22,20 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chat",
+      "short_name": "Chat",
+      "url": "/chat",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Stories",
+      "short_name": "Stories",
+      "url": "/stories",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml" }]
     }
   ]
 }

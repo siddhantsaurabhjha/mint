@@ -46,3 +46,16 @@ export function signCloudinaryUpload(params: {
 export function getCloudinaryUploadUrl(signature: CloudinarySignature) {
   return `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`;
 }
+
+export function extractCloudinaryPublicId(url: string) {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split("/upload/");
+    if (parts.length < 2) return null;
+    const publicPath = parts[1].replace(/^v\d+\//, "");
+    const withoutExt = publicPath.replace(/\.[a-z0-9]+$/i, "");
+    return withoutExt || null;
+  } catch {
+    return null;
+  }
+}

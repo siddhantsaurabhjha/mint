@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/", label: "Home", icon: "home" },
+  { href: "/stories", label: "Stories", icon: "stories" },
   { href: "/chat", label: "Chat", icon: "chat", badge: "2" },
   { href: "/gallery", label: "Gallery", icon: "gallery" },
   { href: "/profile", label: "Profile", icon: "profile" },
@@ -14,6 +15,9 @@ const items = [
 const icons: Record<string, ReactNode> = {
   home: (
     <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" />
+  ),
+  stories: (
+    <path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5A8.5 8.5 0 0 0 12 3.5Zm0 3a5.5 5.5 0 1 1-5.5 5.5A5.5 5.5 0 0 1 12 6.5Zm0 2.5a3 3 0 1 0 3 3 3 3 0 0 0-3-3Z" />
   ),
   chat: (
     <path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v6A3.5 3.5 0 0 1 15.5 16H9l-4 3.5V16A3.5 3.5 0 0 1 5 12.5v-6Z" />

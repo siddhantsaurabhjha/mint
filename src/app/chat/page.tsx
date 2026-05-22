@@ -8,6 +8,7 @@ import ChatSkeleton from "@/components/chat/ChatSkeleton";
 import ChatTimeline from "@/components/chat/ChatTimeline";
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import MediaViewer from "@/components/media/MediaViewer";
+import StoriesRail from "@/components/stories/StoriesRail";
 import { useAuth } from "@/components/AuthProvider";
 import type { ChatMessage } from "@/lib/chat/types";
 import { useChatRoom } from "@/lib/chat/useChatRoom";
@@ -147,7 +148,11 @@ export default function ChatPage() {
     setUploadProgress(null);
   };
 
-  const handleRecorded = async (blob: Blob, duration: number) => {
+  const handleRecorded = async (
+    blob: Blob,
+    duration: number,
+    waveform: number[]
+  ) => {
     if (isSending) return;
     setIsSending(true);
     try {
@@ -160,7 +165,7 @@ export default function ChatPage() {
         type: "voice",
         mediaUrl: result.url,
         mediaPublicId: result.publicId,
-        mediaMeta: { duration },
+        mediaMeta: { duration, waveform },
       });
       setReplyTo(null);
     } finally {
@@ -187,6 +192,8 @@ export default function ChatPage() {
           </div>
         }
       />
+
+      <StoriesRail />
 
       <section className="flex flex-1 flex-col gap-4">
         <div className="flex-1 space-y-4">

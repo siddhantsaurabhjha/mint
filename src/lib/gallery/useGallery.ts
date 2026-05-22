@@ -52,5 +52,42 @@ export function useGallery(roomId: string) {
     };
   }, [loadItems, roomId]);
 
-  return { items, isLoading };
+  const addItem = useCallback(
+    async ({
+      ownerId,
+      type,
+      title,
+      mediaUrl,
+      thumbnailUrl,
+      metadata,
+    }: {
+      ownerId: string;
+      type: "image" | "video";
+      title?: string | null;
+      mediaUrl: string;
+      thumbnailUrl?: string | null;
+      metadata?: Record<string, unknown> | null;
+    }) => {
+      const supabase = getSupabaseBrowserClient();
+      const payload: Record<string, unknown> = {
+        room_id: roomId,
+        owner_id: ownerId,
+        type,
+        title: title ?? null,
+        media_url: mediaUrl,
+        thumbnail_url: thumbnailUrl ?? null,
+        metadata: metadata ?? null,
+      };
+
+      return supabase.from("gallery_items").insert(payload).select("*").single();
+    },
+    [roomId]
+  );
+
+  const deleteItem = useCallback(async (itemId: string) => {
+    const supabase = getSupabaseBrowserClient();
+    await supabase.from("gallery_items").delete().eq("id", itemId);
+  }, []);
+
+  return { items, isLoading, addItem, deleteItem };
 }

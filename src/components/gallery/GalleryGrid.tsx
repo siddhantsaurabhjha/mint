@@ -7,7 +7,7 @@ export default function GalleryGrid({
   onOpen,
 }: {
   items: GalleryItem[];
-  onOpen: (url: string) => void;
+  onOpen: (item: GalleryItem) => void;
 }) {
   return (
     <div className="columns-2 gap-4 [column-fill:_balance]">
@@ -15,7 +15,7 @@ export default function GalleryGrid({
         <div key={item.id} className="mb-4 break-inside-avoid">
           <button
             type="button"
-            onClick={() => onOpen(item.media_url ?? "")}
+            onClick={() => onOpen(item)}
             className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5"
           >
             {item.thumbnail_url || item.media_url ? (
@@ -23,6 +23,7 @@ export default function GalleryGrid({
                 src={item.thumbnail_url ?? item.media_url ?? ""}
                 alt={item.title ?? "Gallery"}
                 loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -30,6 +31,11 @@ export default function GalleryGrid({
                 Empty
               </div>
             )}
+            {item.type === "video" ? (
+              <div className="absolute left-2 top-2 rounded-full border border-white/20 bg-black/40 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-white">
+                Video
+              </div>
+            ) : null}
           </button>
         </div>
       ))}
