@@ -7,7 +7,19 @@ import { formatDuration } from "@/lib/media/format";
 const speeds = [1, 1.5, 2];
 const WAVEFORM_SAMPLES = 36;
 
-export default function ChatVoiceBubble({ message }: { message: ChatMessage }) {
+export default function ChatVoiceBubble({
+  message,
+  timeLabel,
+  statusLabel,
+  statusTone,
+  isOwn,
+}: {
+  message: ChatMessage;
+  timeLabel?: string;
+  statusLabel?: string | null;
+  statusTone?: string;
+  isOwn: boolean;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(0);
@@ -106,9 +118,17 @@ export default function ChatVoiceBubble({ message }: { message: ChatMessage }) {
             );
           })}
         </div>
-        <p className="mt-1 text-[11px] text-white/50">
-          Voice note • {effectiveDuration ? formatDuration(effectiveDuration) : "--:--"}
-        </p>
+        <div className="mt-1 flex items-center justify-between text-[11px] text-white/50">
+          <span>
+            Voice note • {effectiveDuration ? formatDuration(effectiveDuration) : "--:--"}
+          </span>
+          <div className="flex items-center gap-2">
+            {timeLabel ? <span>{timeLabel}</span> : null}
+            {isOwn && statusLabel ? (
+              <span className={statusTone ?? "text-white/70"}>{statusLabel}</span>
+            ) : null}
+          </div>
+        </div>
       </div>
       <button
         type="button"

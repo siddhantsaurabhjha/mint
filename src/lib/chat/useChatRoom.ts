@@ -425,6 +425,27 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
     [messages, userId, upsertMessages]
   );
 
+  const updateMessage = useCallback(
+    async ({ messageId, body }: { messageId: string; body: string }) => {
+      if (!userId) return { data: null, error: { message: "User not allowed." } };
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .update({ body })
+        .eq("id", messageId)
+        .eq("sender_id", userId)
+        .select("*")
+        .single();
+
+      if (!error && data) {
+        upsertMessages([data as ChatMessage]);
+      }
+
+      return { data, error };
+    },
+    [userId, upsertMessages]
+  );
+
   const typingNames = useMemo(
     () => Object.values(typing).map((item) => item.username),
     [typing]
@@ -440,5 +461,6 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
     deleteMessage,
     notifyTyping,
     sendReaction,
+    updateMessage,
   };
 }

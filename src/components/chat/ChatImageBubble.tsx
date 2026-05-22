@@ -9,21 +9,39 @@ export default function ChatImageBubble({
   timeLabel,
   statusLabel,
   statusTone,
+  isOwn,
+  groupedWithPrev,
+  groupedWithNext,
+  isSelected,
 }: {
   message: ChatMessage;
   onOpen: (url: string) => void;
   timeLabel?: string;
   statusLabel?: string | null;
   statusTone?: string;
+  isOwn: boolean;
+  groupedWithPrev: boolean;
+  groupedWithNext: boolean;
+  isSelected: boolean;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
   if (!message.media_url) return null;
+
+  const bubbleRadius = isOwn
+    ? `rounded-2xl ${groupedWithPrev ? "rounded-tr-lg" : ""} ${
+        groupedWithNext ? "rounded-br-lg" : ""
+      }`
+    : `rounded-2xl ${groupedWithPrev ? "rounded-tl-lg" : ""} ${
+        groupedWithNext ? "rounded-bl-lg" : ""
+      }`;
 
   return (
     <button
       type="button"
       onClick={() => onOpen(message.media_url ?? "")}
-      className="group relative w-52 max-w-full overflow-hidden rounded-2xl border border-white/10"
+      className={`group relative w-56 max-w-full overflow-hidden border border-white/10 ${bubbleRadius} ${
+        isSelected ? "ring-2 ring-emerald-300/50" : ""
+      }`}
     >
       <img
         src={message.media_url}
@@ -36,7 +54,7 @@ export default function ChatImageBubble({
       />
       <div className="absolute inset-0 bg-black/30 opacity-0 transition group-hover:opacity-100" />
       {timeLabel ? (
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-6">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-2 pb-2 pt-6">
           <div className="flex items-center justify-end gap-1 text-[10px] text-white/85">
             <span>{timeLabel}</span>
             {statusLabel ? (
