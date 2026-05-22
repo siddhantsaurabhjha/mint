@@ -1,26 +1,151 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --bg: #0b0c14;
+  --bg-2: #0f1324;
+  --panel: rgba(18, 20, 38, 0.82);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --panel-strong: rgba(20, 22, 42, 0.92);
+  --text: #f5f2ff;
+  --muted: #a7adc7;
+  --accent: #b347ff;
+  --accent-2: #5b2cff;
+  --ring: rgba(179, 71, 255, 0.5);
+  --glow: rgba(179, 71, 255, 0.35);
+  --shadow-soft: 0 20px 50px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 18px 45px rgba(120, 80, 255, 0.2);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-ring: var(--ring);
+  --font-body: var(--font-body);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="neon-purple"] {
+  --bg: #0a0b14;
+  --bg-2: #10162a;
+  --panel: rgba(19, 18, 40, 0.78);
+  --text: #f4f1ff;
+  --muted: #b0a8d9;
+  --accent: #b347ff;
+  --accent-2: #5b2cff;
+  --glow: rgba(179, 71, 255, 0.45);
+}
+
+[data-theme="romantic-red"] {
+  --bg: #0e0a12;
+  --bg-2: #1a0d1e;
+  --panel: rgba(30, 16, 28, 0.78);
+  --text: #ffeef3;
+  --muted: #d7a4b4;
+  --accent: #ff4d6d;
+  --accent-2: #b91c48;
+  --glow: rgba(255, 77, 109, 0.4);
+}
+
+[data-theme="midnight-blue"] {
+  --bg: #080c1a;
+  --bg-2: #0d1530;
+  --panel: rgba(13, 20, 44, 0.82);
+  --text: #e8efff;
+  --muted: #9fb0d6;
+  --accent: #4b7bff;
+  --accent-2: #1e2b88;
+  --glow: rgba(75, 123, 255, 0.4);
+}
+
+[data-theme="soft-pink"] {
+  --bg: #120b16;
+  --bg-2: #1b0e20;
+  --panel: rgba(28, 14, 34, 0.78);
+  --text: #fff1f7;
+  --muted: #d9a7be;
+  --accent: #ff9ad1;
+  --accent-2: #ff5fa2;
+  --glow: rgba(255, 154, 209, 0.38);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: radial-gradient(circle at top, var(--glow), transparent 55%),
+    radial-gradient(circle at 10% 75%, rgba(255, 90, 160, 0.1), transparent 60%),
+    radial-gradient(circle at 90% 15%, rgba(75, 123, 255, 0.18), transparent 50%),
+    linear-gradient(160deg, var(--bg), var(--bg-2));
+  color: var(--text);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+  letter-spacing: 0.01em;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+p {
+  line-height: 1.65;
+}
+
+.app-ambient {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-ambient::before,
+.app-ambient::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-ambient::before {
+  background: radial-gradient(circle at 20% 15%, rgba(255, 140, 210, 0.16), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(90, 140, 255, 0.15), transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(180, 90, 255, 0.12), transparent 50%);
+  opacity: 0.8;
+}
+
+.app-ambient::after {
+  background: radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.04), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.03), transparent 60%);
+  mix-blend-mode: screen;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
