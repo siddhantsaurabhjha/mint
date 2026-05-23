@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/components/AuthProvider";
 import { clearAppBadge, ensurePushSubscription } from "@/lib/pwa/push";
 
@@ -26,6 +27,7 @@ const writeStoredPermission = (value: "granted" | "denied") => {
 
 export default function PwaManager() {
   const { user } = useAuth();
+  const isNative = Capacitor.isNativePlatform();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
     null
   );
@@ -33,6 +35,7 @@ export default function PwaManager() {
   const [showNotify, setShowNotify] = useState(false);
 
   useEffect(() => {
+    if (isNative) return;
     const handler = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
@@ -40,9 +43,10 @@ export default function PwaManager() {
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  }, [isNative]);
 
   useEffect(() => {
+    if (isNative) return;
     if (!user) return;
     const permission = Notification.permission;
     const storedPermission = readStoredPermission();
@@ -56,7 +60,7 @@ export default function PwaManager() {
       setShowNotify(storedPermission !== "granted");
     }
     clearAppBadge();
-  }, [user]);
+  }, [isNative, user]);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -66,6 +70,7 @@ export default function PwaManager() {
   };
 
   const handleEnableNotifications = async () => {
+    if (isNative) return;
     await ensurePushSubscription(user?.id ?? null);
     if (Notification.permission === "granted") {
       writeStoredPermission("granted");
@@ -81,9 +86,10 @@ export default function PwaManager() {
   };
 
   if (!showInstall && !showNotify) return null;
+  if (isNative) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+12px)] z-[60] px-4">
+    <div className="fixed inset-x-0 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+12px)] z-60 px-4">
       <div className="mx-auto flex max-w-md flex-col gap-2 rounded-3xl border border-white/10 bg-white/10 px-4 py-3 text-white backdrop-blur-2xl">
         {showInstall ? (
           <div className="flex items-center justify-between gap-3 text-sm">

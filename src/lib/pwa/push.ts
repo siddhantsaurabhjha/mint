@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+
 type PushPayload = {
   title: string;
   body: string;
@@ -22,6 +24,7 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export async function ensurePushSubscription(userId: string | null) {
   if (typeof window === "undefined") return null;
+  if (Capacitor.isNativePlatform()) return null;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
 
   let permission = Notification.permission;
@@ -64,6 +67,15 @@ export async function sendPushNotification(payload: PushPayload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function saveNativePushToken(userId: string | null, fcmToken: string) {
+  if (typeof window === "undefined" || !fcmToken) return;
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, fcmToken }),
   });
 }
 

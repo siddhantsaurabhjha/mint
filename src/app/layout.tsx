@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import AppShell from "@/components/AppShell";
 import { AuthProvider } from "@/components/AuthProvider";
+import NativeBridge from "@/components/NativeBridge";
 import ThemeProvider from "@/components/ThemeProvider";
 import "./globals.css";
 
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body className="min-h-full bg-bg text-text">
         <ThemeProvider>
           <AuthProvider>
+            <NativeBridge />
             <AppShell>{children}</AppShell>
           </AuthProvider>
         </ThemeProvider>
