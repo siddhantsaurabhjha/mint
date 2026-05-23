@@ -269,7 +269,7 @@ export default function ChatPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(118,61,255,0.16),transparent_42%),radial-gradient(circle_at_18%_20%,rgba(63,132,255,0.12),transparent_28%),radial-gradient(circle_at_80%_92%,rgba(159,68,255,0.08),transparent_30%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent)] opacity-50" />
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[linear-gradient(180deg,rgba(48,22,73,0.98),rgba(28,13,42,0.98))] px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-3 shadow-[0_10px_24px_rgba(0,0,0,0.22)]">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[linear-gradient(180deg,rgba(48,22,73,0.98),rgba(28,13,42,0.98))] px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-3 shadow-[0_10px_24px_rgba(0,0,0,0.22)] backdrop-blur-xl">
         <button
           type="button"
           onClick={() => router.push("/stories")}
@@ -291,13 +291,13 @@ export default function ChatPage() {
       </header>
 
       <section
-        className="flex flex-1 flex-col overflow-hidden"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
         onClick={() => {
           setSelectedMessageId(null);
           setShowEmojiPicker(false);
         }}
       >
-        <div className="flex-1 overflow-y-auto px-3 py-4 scroll-smooth">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 scroll-smooth overscroll-contain pb-[calc(88px+env(safe-area-inset-bottom))]">
           {isLoading && messages.length === 0 ? (
             <ChatSkeleton />
           ) : messages.length === 0 ? (
@@ -361,7 +361,7 @@ export default function ChatPage() {
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 z-30 border-t border-white/10 bg-[#120d20] px-3 pb-[calc(10px+env(safe-area-inset-bottom))] pt-3">
+        <div className="sticky bottom-0 z-50 border-t border-white/10 bg-[#120d20] px-3 pb-[calc(10px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
           <ChatInputBar
             value={message}
             onChange={setMessage}
