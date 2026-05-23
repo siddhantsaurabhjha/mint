@@ -13,6 +13,7 @@ import { resolveUsernameFromEmail } from "@/lib/auth";
 import { useCountdowns } from "@/lib/countdowns/useCountdowns";
 import CountdownCard from "@/components/Countdowns/CountdownCard";
 import { useStories } from "@/lib/stories/useStories";
+import { useProfileRecord } from "@/lib/profile/useProfileRecord";
 
 const titleCase = (value: string) =>
   value
@@ -50,20 +51,30 @@ export default function Home() {
   const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const username = email ? resolveUsernameFromEmail(email) : null;
   const displayName = displayNameFromMetadata(email, metadata);
+  const currentProfileSeed = useMemo(
+    () => ({
+      name: displayName || null,
+      avatar_url:
+        (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
+        (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+        null,
+      bio: typeof metadata.bio === "string" ? metadata.bio : null,
+      mood: typeof metadata.mood === "string" ? metadata.mood : null,
+    }),
+    [displayName, metadata]
+  );
   const partnerUsername = username === "sid" ? "laxu" : username === "laxu" ? "sid" : null;
   const partnerName = displayNameFromUsername(partnerUsername);
-  const initials = displayName
+  const { profile: currentProfile } = useProfileRecord(user?.id ?? null, currentProfileSeed);
+  const currentDisplayName = currentProfile?.name || currentProfileSeed.name || "";
+  const currentAvatarUrl = currentProfile?.avatar_url ?? null;
+  const currentMood = currentProfile?.mood ?? null;
+  const currentInitials = currentDisplayName
     .split(" ")
     .filter(Boolean)
     .map((part) => part[0]?.toUpperCase())
     .slice(0, 2)
     .join("");
-  const profileAvatarUrl =
-    (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
-    (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
-    null;
-  const profileMood =
-    (typeof metadata.mood === "string" && metadata.mood.trim()) || "No mood set";
 
   const { stories } = useStories({
     userId: user?.id ?? null,
@@ -94,19 +105,37 @@ export default function Home() {
   );
   const partnerStoryImage = latestPartnerStory?.media_url ?? null;
   const partnerStoryLabel = latestPartnerStory?.caption?.trim() || "No story uploaded yet";
-  const chatPreview = latestMessage
-    ? latestMessage.type === "image"
-      ? "Sent a photo"
-      : latestMessage.type === "voice"
-      ? "Sent a voice note"
-      : latestMessage.body || "Sent a message"
-    : partnerStoryLabel;
-
   const partnerOnline = onlineUsers.some((item) => item.user_id !== user?.id);
-  const partnerId = user?.id ? Object.keys(lastSeen).find((id) => id !== user.id) ?? null : null;
+  const partnerId = useMemo(() => {
+    if (!user?.id) return null;
+
+    const fromPresence = onlineUsers.find((item) => item.user_id !== user.id)?.user_id;
+    if (fromPresence) return fromPresence;
+
+    const fromLastSeen = Object.keys(lastSeen).find((id) => id !== user.id);
+    if (fromLastSeen) return fromLastSeen;
+
+    const fromMessages = [...messages].reverse().find((item) => item.sender_id !== user.id)?.sender_id;
+    if (fromMessages) return fromMessages;
+
+    return null;
+  }, [lastSeen, messages, onlineUsers, user?.id]);
+
+  const { profile: partnerProfile } = useProfileRecord(partnerId, null);
+
   const lastSeenLabel = partnerId && lastSeen[partnerId]
     ? formatDateLabel(lastSeen[partnerId])
     : null;
+  const partnerDisplayName = partnerProfile?.name || "";
+  const partnerAvatarUrl = partnerProfile?.avatar_url ?? null;
+  const partnerBio = partnerProfile?.bio?.trim() || null;
+  const partnerMood = partnerProfile?.mood?.trim() || null;
+  const partnerInitials = partnerDisplayName
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase())
+    .slice(0, 2)
+    .join("");
 
   const { events, isLoading, error: countdownError, createEvent, updateEvent, deleteEvent } = useCountdowns({
     userId: user?.id ?? null,
@@ -157,15 +186,15 @@ export default function Home() {
       <GlassCard className="rounded-[28px] bg-(--panel-solid) px-5 py-4">
         <div className="flex items-start gap-4">
           <div className="relative h-16 w-16 overflow-hidden rounded-[22px] border border-fuchsia-300/20 bg-white/8 shadow-[0_0_22px_rgba(179,71,255,0.18)]">
-            {profileAvatarUrl ? (
+            {currentAvatarUrl ? (
               <img
-                src={profileAvatarUrl}
-                alt={displayName}
+                src={currentAvatarUrl}
+                alt={currentDisplayName}
                 className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/90">
-                {initials || "ME"}
+                {currentInitials || "ME"}
               </div>
             )}
             <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border border-(--panel-solid) bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.5)]" />
@@ -174,15 +203,17 @@ export default function Home() {
           <div className="min-w-0 flex-1">
             <p className="text-[11px] uppercase tracking-[0.35em] text-white/55">MINT</p>
             <h1 className="mt-1 truncate text-lg font-semibold text-white">
-              {displayName || ""}
+              {currentDisplayName || ""}
             </h1>
             <p className="mt-1 text-xs text-white/60">Your private couple hub</p>
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <span className="max-w-28 truncate rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70">
-              {profileMood}
-            </span>
+            {currentMood ? (
+              <span className="max-w-28 truncate rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                {currentMood}
+              </span>
+            ) : null}
             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/55">
               {partnerOnline ? "Live sync" : "Syncing"}
             </span>
@@ -242,14 +273,18 @@ export default function Home() {
         <Link href="/chat" className="block">
           <GlassCard className="rounded-[28px] px-5 py-4">
             <div className="flex items-center gap-4">
-              <div className={`relative h-16 w-16 overflow-hidden rounded-[22px] border ${partnerStoryImage ? "border-accent shadow-[0_0_18px_rgba(179,71,255,0.45)]" : "border-white/10 bg-white/5"}`}>
-                {partnerStoryImage ? (
+              <div className={`relative h-16 w-16 overflow-hidden rounded-[22px] border ${partnerAvatarUrl ? "border-accent shadow-[0_0_18px_rgba(179,71,255,0.45)]" : "border-white/10 bg-white/5"}`}>
+                {partnerAvatarUrl ? (
                   <img
-                    src={partnerStoryImage}
-                    alt={partnerName || "Partner"}
+                    src={partnerAvatarUrl}
+                    alt={partnerDisplayName || "Partner"}
                     className="h-full w-full object-cover"
                   />
-                ) : null}
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/90">
+                    {partnerInitials || "LU"}
+                  </div>
+                )}
                 <div className="absolute inset-0 rounded-[22px] bg-linear-to-t from-black/35 to-transparent" />
                 <div className="absolute inset-0.5 rounded-[20px] border border-white/10" />
                 <span
@@ -262,23 +297,24 @@ export default function Home() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-semibold text-white">
-                    {partnerName || "Chat"}
+                    {partnerDisplayName}
                   </p>
                   <p className="text-[11px] text-white/55">{latestTimestamp}</p>
                 </div>
-                <p className="truncate text-xs text-white/65">{chatPreview}</p>
+                {partnerBio ? <p className="truncate text-xs text-white/65">{partnerBio}</p> : null}
+                {partnerMood ? (
+                  <span className="mt-1 inline-flex max-w-36 truncate rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                    {partnerMood}
+                  </span>
+                ) : null}
               </div>
 
               <div className="flex flex-col items-end gap-2">
                 {unreadCount > 0 ? (
                   <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-black">
-                    {unreadCount}
+                    New msg
                   </span>
-                ) : (
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-white/50">
-                    Open
-                  </span>
-                )}
+                ) : null}
                 <ChevronRight size={18} className="text-white/50" />
               </div>
             </div>

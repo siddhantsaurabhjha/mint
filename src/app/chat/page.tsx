@@ -23,6 +23,7 @@ export default function ChatPage() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const email = user?.email ?? null;
+  const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const currentUsername = email ? resolveUsernameFromEmail(email) : null;
   const {
     messages,
@@ -35,7 +36,24 @@ export default function ChatPage() {
     notifyTyping,
     sendReaction,
     updateMessage,
-  } = useChatRoom({ userId, email });
+  } = useChatRoom({
+    userId,
+    email,
+    profileSnapshot: {
+      displayName:
+        (typeof metadata.full_name === "string" && metadata.full_name.trim()) ||
+        (typeof metadata.name === "string" && metadata.name.trim()) ||
+        (typeof metadata.display_name === "string" && metadata.display_name.trim()) ||
+        currentUsername ||
+        "Partner",
+      avatarUrl:
+        (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
+        (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+        null,
+      bio: typeof metadata.bio === "string" ? metadata.bio : null,
+      mood: typeof metadata.mood === "string" ? metadata.mood : null,
+    },
+  });
 
   const [message, setMessage] = useState("");
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);

@@ -9,8 +9,8 @@ import UploadProgress from "@/components/media/UploadProgress";
 import { useGallery } from "@/lib/gallery/useGallery";
 import { ROOM_ID } from "@/lib/chat/constants";
 import { getUploadSignature, uploadToCloudinary } from "@/lib/media/upload";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { resolveUsernameFromEmail } from "@/lib/auth";
+import { useProfileRecord } from "@/lib/profile/useProfileRecord";
 
 const PROFILE_FOLDER = "lumen-duo/profile";
 
@@ -40,22 +40,30 @@ export default function ProfilePage() {
   const email = user?.email ?? null;
   const metadata = useMemo(
     () => (user?.user_metadata ?? {}) as Record<string, unknown>,
-    [user?.user_metadata],
+    [user?.user_metadata]
   );
-  const displayName = useMemo(() => getDisplayName(email, metadata), [email, metadata]);
+  const seedProfile = useMemo(
+    () => ({
+      name: getDisplayName(email, metadata),
+      avatar_url:
+        (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
+        (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+        null,
+      bio: typeof metadata.bio === "string" ? metadata.bio : null,
+      mood: typeof metadata.mood === "string" ? metadata.mood : null,
+    }),
+    [email, metadata]
+  );
+  const { profile, upsertProfile } = useProfileRecord(user?.id ?? null, seedProfile);
 
-  const initialAvatar =
-    (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
-    (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
-    null;
-  const initialBio = typeof metadata.bio === "string" ? metadata.bio : "";
-  const initialMood = typeof metadata.mood === "string" ? metadata.mood : "";
+  const displayName = profile?.name || seedProfile.name || "";
+  const displayAvatarUrl = profile?.avatar_url ?? null;
+  const displayBio = profile?.bio ?? "";
+  const displayMood = profile?.mood ?? "";
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatar);
-  const [bio, setBio] = useState(initialBio);
-  const [mood, setMood] = useState(initialMood);
-  const [bioDraft, setBioDraft] = useState(initialBio);
-  const [moodDraft, setMoodDraft] = useState(initialMood);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [bioDraft, setBioDraft] = useState("");
+  const [moodDraft, setMoodDraft] = useState("");
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [isEditingMood, setIsEditingMood] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,85 +72,131 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { items } = useGallery(ROOM_ID);
 
-  const updateProfileMetadata = async (patch: Record<string, unknown>) => {
-    if (!user) return false;
-    setIsSaving(true);
-    setError(null);
-    try {
-      const supabase = getSupabaseBrowserClient();
-      const nextData = { ...(user.user_metadata ?? {}), ...patch };
-      const { error: updateError } = await supabase.auth.updateUser({ data: nextData });
-      if (updateError) {
-        setError(updateError.message);
-        return false;
-      }
-      return true;
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleAvatarSelect = async (file: File) => {
-    const previousAvatar = avatarUrl;
+    const previousAvatar = avatarPreviewUrl ?? displayAvatarUrl;
     const localPreview = URL.createObjectURL(file);
-    setAvatarUrl(localPreview);
+    setAvatarPreviewUrl(localPreview);
     setUploadProgress(0);
     setError(null);
+    setIsSaving(true);
 
     try {
       const signature = await getUploadSignature(PROFILE_FOLDER, "image");
       const result = await uploadToCloudinary(signature, file, setUploadProgress);
-      const saved = await updateProfileMetadata({ profile_avatar_url: result.url });
+      const saved = await upsertProfile({
+        name: displayName,
+        avatar_url: result.url,
+        bio: displayBio || null,
+        mood: displayMood || null,
+      });
       if (!saved) {
-        setAvatarUrl(previousAvatar);
+        setError("Could not save profile photo.");
+        setAvatarPreviewUrl(previousAvatar);
         return;
       }
-      setAvatarUrl(result.url);
+      setAvatarPreviewUrl(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to upload profile photo.");
+      setAvatarPreviewUrl(previousAvatar);
     } finally {
       URL.revokeObjectURL(localPreview);
       setUploadProgress(null);
+      setIsSaving(false);
     }
   };
 
   const handleRemoveAvatar = async () => {
-    const previousAvatar = avatarUrl;
-    setAvatarUrl(null);
-    const saved = await updateProfileMetadata({ profile_avatar_url: null, avatar_url: null });
+    const previousAvatar = avatarPreviewUrl ?? displayAvatarUrl;
+    setAvatarPreviewUrl(null);
+    setIsSaving(true);
+    setError(null);
+    const saved = await upsertProfile({
+      name: displayName,
+      avatar_url: null,
+      bio: displayBio || null,
+      mood: displayMood || null,
+    });
     if (!saved) {
-      setAvatarUrl(previousAvatar);
+      setError("Could not remove profile photo.");
+      setAvatarPreviewUrl(previousAvatar);
     }
+    setIsSaving(false);
   };
 
   const handleSaveBio = async () => {
     const value = bioDraft.trim();
-    const saved = await updateProfileMetadata({ bio: value || null });
-    if (!saved) return;
-    setBio(value);
+    setIsSaving(true);
+    setError(null);
+    const saved = await upsertProfile({
+      name: displayName,
+      bio: value || null,
+      avatar_url: displayAvatarUrl,
+      mood: displayMood || null,
+    });
+    if (!saved) {
+      setError("Could not save bio.");
+      setIsSaving(false);
+      return;
+    }
     setIsEditingBio(false);
+    setIsSaving(false);
   };
 
   const handleDeleteBio = async () => {
-    const saved = await updateProfileMetadata({ bio: null });
-    if (!saved) return;
-    setBio("");
+    setIsSaving(true);
+    setError(null);
+    const saved = await upsertProfile({
+      name: displayName,
+      bio: null,
+      avatar_url: displayAvatarUrl,
+      mood: displayMood || null,
+    });
+    if (!saved) {
+      setError("Could not delete bio.");
+      setIsSaving(false);
+      return;
+    }
     setBioDraft("");
     setIsEditingBio(false);
+    setIsSaving(false);
   };
 
   const handleSaveMood = async () => {
     const value = moodDraft.trim();
-    const saved = await updateProfileMetadata({ mood: value || null });
-    if (!saved) return;
-    setMood(value);
+    setIsSaving(true);
+    setError(null);
+    const saved = await upsertProfile({
+      name: displayName,
+      mood: value || null,
+      avatar_url: displayAvatarUrl,
+      bio: displayBio || null,
+    });
+    if (!saved) {
+      setError("Could not save mood.");
+      setIsSaving(false);
+      return;
+    }
     setIsEditingMood(false);
+    setIsSaving(false);
   };
 
   const handleDeleteMood = async () => {
-    const saved = await updateProfileMetadata({ mood: null });
-    if (!saved) return;
-    setMood("");
+    setIsSaving(true);
+    setError(null);
+    const saved = await upsertProfile({
+      name: displayName,
+      mood: null,
+      avatar_url: displayAvatarUrl,
+      bio: displayBio || null,
+    });
+    if (!saved) {
+      setError("Could not delete mood.");
+      setIsSaving(false);
+      return;
+    }
     setMoodDraft("");
     setIsEditingMood(false);
+    setIsSaving(false);
   };
 
   const initials = displayName
@@ -172,9 +226,9 @@ export default function ProfilePage() {
         <div className="flex items-start gap-4">
           <div className="relative">
             <div className="relative h-20 w-20 overflow-hidden rounded-3xl border border-fuchsia-300/25 bg-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_0_20px_rgba(163,93,255,0.22)]">
-              {avatarUrl ? (
+              {avatarPreviewUrl ?? displayAvatarUrl ? (
                 <img
-                  src={avatarUrl}
+                  src={avatarPreviewUrl ?? displayAvatarUrl ?? ""}
                   alt={displayName}
                   className="h-full w-full object-cover"
                 />
@@ -205,9 +259,9 @@ export default function ProfilePage() {
                 disabled={isSaving}
                 className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70"
               >
-                {avatarUrl ? "Change Photo" : "Upload Photo"}
+                {avatarPreviewUrl ?? displayAvatarUrl ? "Change Photo" : "Upload Photo"}
               </button>
-              {avatarUrl ? (
+              {avatarPreviewUrl ?? displayAvatarUrl ? (
                 <button
                   type="button"
                   onClick={handleRemoveAvatar}
@@ -243,14 +297,14 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setBioDraft(bio);
+                      setBioDraft(displayBio);
                       setIsEditingBio(true);
                     }}
                     className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70"
                   >
-                    {bio ? "Edit Bio" : "Add Bio"}
+                    {displayBio ? "Edit Bio" : "Add Bio"}
                   </button>
-                  {bio ? (
+                  {displayBio ? (
                     <button
                       type="button"
                       onClick={handleDeleteBio}
@@ -278,7 +332,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => {
                       setIsEditingBio(false);
-                      setBioDraft(bio);
+                      setBioDraft(displayBio);
                     }}
                     className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/60"
                   >
@@ -294,7 +348,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-white/80">{bio || "No bio yet."}</p>
+              <p className="mt-2 text-sm text-white/80">{displayBio || "No bio yet."}</p>
             )}
           </div>
 
@@ -306,14 +360,14 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setMoodDraft(mood);
+                      setMoodDraft(displayMood);
                       setIsEditingMood(true);
                     }}
                     className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70"
                   >
-                    {mood ? "Edit Mood" : "Add Mood"}
+                    {displayMood ? "Edit Mood" : "Add Mood"}
                   </button>
-                  {mood ? (
+                  {displayMood ? (
                     <button
                       type="button"
                       onClick={handleDeleteMood}
@@ -340,7 +394,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => {
                       setIsEditingMood(false);
-                      setMoodDraft(mood);
+                      setMoodDraft(displayMood);
                     }}
                     className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/60"
                   >
@@ -356,7 +410,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-white/80">{mood || "No mood set yet."}</p>
+              <p className="mt-2 text-sm text-white/80">{displayMood || "No mood set yet."}</p>
             )}
           </div>
         </div>

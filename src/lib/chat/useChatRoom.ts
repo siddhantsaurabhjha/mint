@@ -11,6 +11,8 @@ import { sendPushNotification } from "@/lib/pwa/push";
 
 const TYPING_EVENT = "typing";
 const REACTION_EVENT = "reaction";
+const PROFILE_EVENT = "profile";
+const PROFILE_SYNC_REQUEST_EVENT = "profile-sync-request";
 
 type PresenceState = {
   user_id: string;
@@ -24,20 +26,83 @@ type TypingState = Record<string, { username: string; updatedAt: number }>;
 type UseChatRoomOptions = {
   userId: string;
   email: string | null | undefined;
+  profileSnapshot?: {
+    displayName?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+    mood?: string | null;
+  };
 };
 
-export function useChatRoom({ userId, email }: UseChatRoomOptions) {
+type ProfileSnapshot = {
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  mood: string | null;
+  updatedAt: string;
+};
+
+export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [typing, setTyping] = useState<TypingState>({});
   const [onlineUsers, setOnlineUsers] = useState<PresenceState[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
+  const [profileByUserId, setProfileByUserId] = useState<Record<string, ProfileSnapshot>>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const username = email ? resolveUsernameFromEmail(email) : null;
   const allowed = isAllowedEmail(email);
+
+  const ownProfileSnapshot = useMemo(() => {
+    const normalize = (value?: string | null) => {
+      const trimmed = value?.trim();
+      return trimmed ? trimmed : null;
+    };
+
+    const fallbackDisplayName = username ? username : "Partner";
+    return {
+      displayName: normalize(profileSnapshot?.displayName) ?? fallbackDisplayName,
+      avatarUrl: normalize(profileSnapshot?.avatarUrl),
+      bio: normalize(profileSnapshot?.bio),
+      mood: normalize(profileSnapshot?.mood),
+      updatedAt: new Date().toISOString(),
+    };
+  }, [profileSnapshot?.avatarUrl, profileSnapshot?.bio, profileSnapshot?.displayName, profileSnapshot?.mood, username]);
+
+  const upsertProfileSnapshot = useCallback((nextUserId: string, next: ProfileSnapshot) => {
+    if (!nextUserId) return;
+    setProfileByUserId((prev) => {
+      const current = prev[nextUserId];
+      if (
+        current &&
+        current.displayName === next.displayName &&
+        current.avatarUrl === next.avatarUrl &&
+        current.bio === next.bio &&
+        current.mood === next.mood
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [nextUserId]: next,
+      };
+    });
+  }, []);
+
+  const broadcastProfileSnapshot = useCallback(() => {
+    if (!channelRef.current || !userId) return;
+    channelRef.current.send({
+      type: "broadcast",
+      event: PROFILE_EVENT,
+      payload: {
+        user_id: userId,
+        ...ownProfileSnapshot,
+      },
+    });
+  }, [ownProfileSnapshot, userId]);
 
   const upsertMessages = useCallback((next: ChatMessage[]) => {
     setMessages((prev) => {
@@ -183,9 +248,46 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
             return copy;
           });
         }, 2500);
+      })
+      .on("broadcast", { event: PROFILE_EVENT }, ({ payload }) => {
+        const nextPayload = payload as {
+          user_id: string;
+          displayName?: string;
+          avatarUrl?: string | null;
+          bio?: string | null;
+          mood?: string | null;
+          updatedAt?: string;
+        };
+
+        if (!nextPayload.user_id) return;
+
+        upsertProfileSnapshot(nextPayload.user_id, {
+          displayName: nextPayload.displayName?.trim() || "Partner",
+          avatarUrl: nextPayload.avatarUrl ?? null,
+          bio: nextPayload.bio ?? null,
+          mood: nextPayload.mood ?? null,
+          updatedAt: nextPayload.updatedAt ?? new Date().toISOString(),
+        });
+      })
+      .on("broadcast", { event: PROFILE_SYNC_REQUEST_EVENT }, ({ payload }) => {
+        const nextPayload = payload as { requester_user_id?: string; target_user_id?: string };
+        if (!nextPayload.requester_user_id || nextPayload.requester_user_id === userId) return;
+        if (nextPayload.target_user_id !== userId) return;
+        broadcastProfileSnapshot();
       });
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+      if (status !== "SUBSCRIBED") return;
+      broadcastProfileSnapshot();
+      if (!userId) return;
+      channel.send({
+        type: "broadcast",
+        event: PROFILE_SYNC_REQUEST_EVENT,
+        payload: {
+          requester_user_id: userId,
+        },
+      });
+    });
     channelRef.current = channel;
 
     return () => {
@@ -193,7 +295,13 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
       channelRef.current?.unsubscribe();
       channelRef.current = null;
     };
-  }, [userId, username, markDeliveredAndSeen, upsertMessages, removeMessage]);
+  }, [userId, username, markDeliveredAndSeen, upsertMessages, removeMessage, upsertProfileSnapshot, broadcastProfileSnapshot]);
+
+  useEffect(() => {
+    if (!userId) return;
+    upsertProfileSnapshot(userId, ownProfileSnapshot);
+    broadcastProfileSnapshot();
+  }, [broadcastProfileSnapshot, ownProfileSnapshot, upsertProfileSnapshot, userId]);
 
   useEffect(() => {
     if (!userId || !username || !allowed) return undefined;
@@ -457,6 +565,7 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
     typingNames,
     onlineUsers,
     lastSeen,
+    profileByUserId,
     sendMessage,
     deleteMessage,
     notifyTyping,

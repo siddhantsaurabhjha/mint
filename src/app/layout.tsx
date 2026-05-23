@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import AppShell from "@/components/AppShell";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -36,10 +36,11 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  themeColor: "#0b0c14",
+export const viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

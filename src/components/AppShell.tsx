@@ -19,7 +19,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isChat = pathname === "/chat";
 
   return (
-    <div className="relative min-h-screen app-ambient">
+    <div className="relative min-h-dvh overflow-x-hidden app-ambient">
       <SplashScreen />
       <AuthGate />
       <AnimatePresence mode="wait">
@@ -30,7 +30,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           exit="exit"
           variants={pageTransition}
           transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-          className={`relative z-10 px-4 pt-[calc(24px+env(safe-area-inset-top))] ${
+          className={`relative z-10 mx-auto w-full max-w-md overflow-x-hidden px-4 pt-[calc(24px+env(safe-area-inset-top))] ${
             isLogin
               ? "pb-[calc(24px+env(safe-area-inset-bottom))]"
               : isChat
