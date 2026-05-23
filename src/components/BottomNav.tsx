@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGroup, motion } from "framer-motion";
-import { Home, Images, User } from "lucide-react";
+import { Home, Images, NotebookPen, User } from "lucide-react";
 
 const items = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/notes", label: "Notes", icon: NotebookPen },
   { href: "/gallery", label: "Gallery", icon: Images },
   { href: "/profile", label: "Profile", icon: User },
 ];

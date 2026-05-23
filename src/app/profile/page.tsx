@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Camera, Pencil, Trash2 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
@@ -429,16 +430,16 @@ export default function ProfilePage() {
         />
       </GlassCard>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center">
-          <p className="text-lg font-semibold text-white">{items.length}</p>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">Albums</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center">
+            <p className="text-lg font-semibold text-white">{items.length}</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">Albums</p>
+          </div>
+          <Link href="/notes" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center transition hover:bg-white/10">
+            <p className="text-lg font-semibold text-white">Notes</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">Shared journal</p>
+          </Link>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center">
-          <p className="text-lg font-semibold text-white">0</p>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">Notes</p>
-        </div>
-      </div>
 
       <GlassCard className="rounded-3xl px-4 py-4">
         <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-white/55">
