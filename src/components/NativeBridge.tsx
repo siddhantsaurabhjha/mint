@@ -68,6 +68,7 @@ async function registerNativePush(userId: string | null) {
   const registrationListener = await PushNotifications.addListener(
     "registration",
     async (token: Token) => {
+      console.log("[push] FCM token", token.value);
       await saveNativePushToken(userId, token.value);
     }
   );
@@ -109,7 +110,11 @@ async function registerNativePush(userId: string | null) {
     }
   );
 
-  await PushNotifications.register();
+  try {
+    await PushNotifications.register();
+  } catch (error) {
+    console.error("[push] register failed", error);
+  }
 
   return async () => {
     await registrationListener.remove();
