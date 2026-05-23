@@ -30,12 +30,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           exit="exit"
           variants={pageTransition}
           transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-          className={`relative z-10 mx-auto w-full max-w-md overflow-x-hidden px-4 pt-[calc(24px+env(safe-area-inset-top))] ${
+          className={`relative z-10 w-full overflow-x-hidden ${
             isLogin
-              ? "pb-[calc(24px+env(safe-area-inset-bottom))]"
+              ? "mx-auto max-w-md px-4 pt-[calc(24px+env(safe-area-inset-top))] pb-[calc(24px+env(safe-area-inset-bottom))]"
               : isChat
-              ? "pb-[calc(16px+env(safe-area-inset-bottom))]"
-              : "pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+20px)]"
+              ? "mx-0 max-w-none px-0 pt-0 pb-0"
+              : "mx-auto max-w-md px-4 pt-[calc(24px+env(safe-area-inset-top))] pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+20px)]"
           }`}
         >
           {children}
