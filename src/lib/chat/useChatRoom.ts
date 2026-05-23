@@ -63,7 +63,6 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
   const receiptsChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pushedMessageIdsRef = useRef<Set<string>>(new Set());
   const username = email ? resolveUsernameFromEmail(email) : null;
   const allowed = isAllowedEmail(email);
 
@@ -315,27 +314,15 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
             document.visibilityState === "visible"
           ) {
             const senderName = toNotificationName(next.sender_username);
+            const preview = next.body?.trim() || (next.type === "image" ? "Sent a photo" : next.type === "voice" ? "Sent a voice message" : "New message");
             const notification = new Notification("MINT", {
-              body: `${senderName} sent a message`,
-              tag: `mint-local-${next.id}`,
+              body: `${senderName}: ${preview}`,
+              tag: `mint-chat-${next.id}`,
             });
             notification.onclick = () => {
               window.focus();
               window.location.assign("/chat");
             };
-          }
-
-          if (next.sender_id === userId && !pushedMessageIdsRef.current.has(next.id)) {
-            pushedMessageIdsRef.current.add(next.id);
-            const senderName = toNotificationName(next.sender_username);
-            void sendPushNotification({
-              title: "MINT",
-              body: `${senderName} sent a message`,
-              url: "/chat",
-              tag: `mint-chat-${next.id}`,
-              senderId: userId,
-              badge: 1,
-            });
           }
         }
       )
@@ -636,6 +623,17 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
 
       if (!error && data) {
         upsertMessages([data as ChatMessage]);
+        const preview = body?.trim() || (type === "image" ? "Sent a photo" : type === "voice" ? "Sent a voice message" : "New message");
+        const senderName = toNotificationName(username);
+        void sendPushNotification({
+          title: "MINT",
+          body: `${senderName}: ${preview}`,
+          url: "/chat",
+          tag: `mint-chat-${data.id}`,
+          senderId: userId,
+          recipientId: partnerUserId,
+          badge: 1,
+        });
       }
 
       return { data, error };
@@ -647,14 +645,24 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
     async (messageId: string) => {
       if (!userId) return;
       const supabase = getSupabaseBrowserClient();
-      await supabase
+      const { data, error } = await supabase
         .from("chat_messages")
-        .delete()
+        .update({
+          body: "This message was deleted",
+          type: "text",
+          media_url: null,
+          media_meta: null,
+          reply_to: null,
+        })
         .eq("id", messageId)
-        .eq("sender_id", userId);
-      removeMessage(messageId);
+        .eq("sender_id", userId)
+        .select("*")
+        .single();
+      if (!error && data) {
+        upsertMessages([data as ChatMessage]);
+      }
     },
-    [userId, removeMessage]
+    [userId, upsertMessages]
   );
 
   const broadcastTyping = useCallback(

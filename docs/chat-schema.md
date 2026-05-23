@@ -13,6 +13,7 @@ create table if not exists public.chat_messages (
   id uuid primary key default gen_random_uuid(),
   room_id text not null,
   sender_id uuid not null,
+  recipient_id uuid not null,
   sender_username text not null,
   body text,
   type text not null default 'text',
@@ -155,6 +156,7 @@ create policy "chat_messages_insert" on public.chat_messages
   for insert with check (
     auth.role() = 'authenticated'
     and (auth.jwt() ->> 'email') in ('sid@mail.com', 'laxu@mail.com')
+    and recipient_id is not null
   );
 
 create policy "chat_messages_update" on public.chat_messages
@@ -162,6 +164,8 @@ create policy "chat_messages_update" on public.chat_messages
     auth.role() = 'authenticated'
     and (auth.jwt() ->> 'email') in ('sid@mail.com', 'laxu@mail.com')
   );
+
+-- Delete for everyone is handled as an update to a shared deleted placeholder so both devices stay in sync.
 
 create policy "chat_receipts_access" on public.chat_receipts
   for all using (

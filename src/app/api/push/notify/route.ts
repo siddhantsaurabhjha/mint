@@ -4,13 +4,14 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   try {
-    const { title, body, url, tag, badge, senderId } = (await request.json()) as {
+    const { title, body, url, tag, badge, senderId, recipientId } = (await request.json()) as {
       title?: string;
       body?: string;
       url?: string;
       tag?: string;
       badge?: number;
       senderId?: string | null;
+      recipientId?: string | null;
     };
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -40,10 +41,14 @@ export async function POST(request: Request) {
       badge: badge ?? 1,
     });
 
+    const targetSubscriptions = data.filter((item) => {
+      if (recipientId) return item.user_id === recipientId;
+      if (senderId) return item.user_id !== senderId;
+      return true;
+    });
+
     const results = await Promise.allSettled(
-      data
-        .filter((item) => (senderId ? item.user_id !== senderId : true))
-        .map((item) =>
+      targetSubscriptions.map((item) =>
           webpush.sendNotification(
             {
               endpoint: item.endpoint,
@@ -59,7 +64,7 @@ export async function POST(request: Request) {
       if (result.status === "rejected") {
         const reason = result.reason as { statusCode?: number } | undefined;
         if (reason?.statusCode === 404 || reason?.statusCode === 410) {
-          staleEndpoints.push(data[index].endpoint);
+          staleEndpoints.push(targetSubscriptions[index].endpoint);
         }
       }
     });

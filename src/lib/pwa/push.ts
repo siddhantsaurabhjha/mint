@@ -5,6 +5,7 @@ type PushPayload = {
   tag?: string;
   badge?: number;
   senderId?: string | null;
+  recipientId?: string | null;
 };
 
 function urlBase64ToUint8Array(base64String: string) {
