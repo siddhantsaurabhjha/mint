@@ -8,6 +8,7 @@ import { MESSAGE_LIMIT, ROOM_ID } from "@/lib/chat/constants";
 import { readCachedMessages, writeCachedMessages } from "@/lib/chat/cache";
 import { isAllowedEmail, resolveUsernameFromEmail } from "@/lib/auth";
 import { sendPushNotification } from "@/lib/pwa/push";
+import { syncProfilePresence } from "@/lib/profile/presence";
 
 const TYPING_EVENT = "typing";
 const REACTION_EVENT = "reaction";
@@ -17,6 +18,9 @@ type PresenceState = {
   username: string;
   is_online: boolean;
   last_seen: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  mood?: string | null;
 };
 
 type TypingState = Record<string, { username: string; updatedAt: number }>;
@@ -24,12 +28,18 @@ type TypingState = Record<string, { username: string; updatedAt: number }>;
 type UseChatRoomOptions = {
   userId: string;
   email: string | null | undefined;
+  profile?: {
+    avatarUrl?: string | null;
+    bio?: string | null;
+    mood?: string | null;
+  };
 };
 
-export function useChatRoom({ userId, email }: UseChatRoomOptions) {
+export function useChatRoom({ userId, email, profile }: UseChatRoomOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [typing, setTyping] = useState<TypingState>({});
+  const [presenceUsers, setPresenceUsers] = useState<PresenceState[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<PresenceState[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -203,6 +213,11 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
 
     const applyPresenceState = (state: PresenceState) => {
       if (!isMounted) return;
+      setPresenceUsers((prev) => {
+        const map = new Map(prev.map((item) => [item.user_id, item]));
+        map.set(state.user_id, state);
+        return Array.from(map.values());
+      });
       setOnlineUsers((prev) => {
         const map = new Map(prev.map((item) => [item.user_id, item]));
         map.set(state.user_id, state);
@@ -215,28 +230,17 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
     };
 
     const updatePresence = async (isOnline: boolean) => {
-      const payload = {
-        user_id: userId,
+      await syncProfilePresence({
+        userId,
         username,
-        is_online: isOnline,
-        last_seen: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data } = await supabase
-        .from("user_presence")
-        .update(payload)
-        .eq("user_id", userId)
-        .select("id");
-
-      if (!data || data.length === 0) {
-        await supabase.from("user_presence").insert(payload);
-      }
+        isOnline,
+        profile,
+      });
     };
 
     supabase
       .from("user_presence")
-      .select("user_id, username, is_online, last_seen")
+      .select("*")
       .then(({ data }) => {
         if (!data) return;
         data.forEach((item) => applyPresenceState(item as PresenceState));
@@ -455,6 +459,7 @@ export function useChatRoom({ userId, email }: UseChatRoomOptions) {
     messages,
     isLoading,
     typingNames,
+    presenceUsers,
     onlineUsers,
     lastSeen,
     sendMessage,

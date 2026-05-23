@@ -24,10 +24,12 @@ export default function ChatPage() {
   const userId = user?.id ?? "";
   const email = user?.email ?? null;
   const currentUsername = email ? resolveUsernameFromEmail(email) : null;
+  const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const {
     messages,
     isLoading,
     typingNames,
+    presenceUsers,
     onlineUsers,
     lastSeen,
     sendMessage,
@@ -35,7 +37,18 @@ export default function ChatPage() {
     notifyTyping,
     sendReaction,
     updateMessage,
-  } = useChatRoom({ userId, email });
+  } = useChatRoom({
+    userId,
+    email,
+    profile: {
+      avatarUrl:
+        (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
+        (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+        null,
+      mood: typeof metadata.mood === "string" ? metadata.mood.trim() || null : null,
+      bio: typeof metadata.bio === "string" ? metadata.bio.trim() || null : null,
+    },
+  });
 
   const [message, setMessage] = useState("");
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -74,19 +87,26 @@ export default function ChatPage() {
   }, [previewSrc]);
 
   const partnerOnline = onlineUsers.some((item) => item.user_id !== userId);
+  const partnerPresence = useMemo(
+    () => presenceUsers.find((item) => item.user_id !== userId) ?? null,
+    [presenceUsers, userId]
+  );
   const partnerId = useMemo(() => {
     if (!userId) return null;
     const ids = Object.keys(lastSeen).filter((id) => id !== userId);
     return ids[0] ?? null;
   }, [lastSeen, userId]);
   const partnerName = useMemo(() => {
+    const fromPresence = partnerPresence?.username;
+    if (fromPresence) return fromPresence;
     const fromPresence = onlineUsers.find((item) => item.user_id !== userId)?.username;
     if (fromPresence) return fromPresence;
     const fromMessage = [...messages]
       .reverse()
       .find((item) => item.sender_id !== userId)?.sender_username;
     return fromMessage ?? "Partner";
-  }, [messages, onlineUsers, userId]);
+  }, [messages, onlineUsers, partnerPresence, userId]);
+  const partnerAvatarUrl = partnerPresence?.avatar_url ?? null;
   const partnerInitials = partnerName
     .split(" ")
     .filter(Boolean)
@@ -258,9 +278,11 @@ export default function ChatPage() {
           className="flex w-full items-center gap-3 text-left"
         >
           <div className="relative h-12 w-12 overflow-hidden rounded-full border border-fuchsia-300/20 bg-[#160d26] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_0_18px_rgba(139,92,246,0.18)]">
-            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
-              {partnerInitials || "LU"}
-            </div>
+            {partnerAvatarUrl ? (
+              <img src={partnerAvatarUrl} alt={partnerName} className="h-full w-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.35),transparent_22%),radial-gradient(circle_at_center,rgba(185,101,255,0.9),rgba(89,36,166,0.95)_55%,rgba(19,8,31,1)_100%)]" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{partnerName}</p>

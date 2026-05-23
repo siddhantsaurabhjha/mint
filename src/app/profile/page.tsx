@@ -11,6 +11,7 @@ import { ROOM_ID } from "@/lib/chat/constants";
 import { getUploadSignature, uploadToCloudinary } from "@/lib/media/upload";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { resolveUsernameFromEmail } from "@/lib/auth";
+import { syncProfilePresence } from "@/lib/profile/presence";
 
 const PROFILE_FOLDER = "lumen-duo/profile";
 
@@ -82,6 +83,22 @@ export default function ProfilePage() {
     }
   };
 
+  const syncCurrentPresence = async (nextProfile: {
+    avatarUrl?: string | null;
+    bio?: string | null;
+    mood?: string | null;
+  }) => {
+    if (!user || !email) return;
+    const username = resolveUsernameFromEmail(email);
+    if (!username) return;
+    await syncProfilePresence({
+      userId: user.id,
+      username,
+      isOnline: true,
+      profile: nextProfile,
+    });
+  };
+
   const handleAvatarSelect = async (file: File) => {
     const previousAvatar = avatarUrl;
     const localPreview = URL.createObjectURL(file);
@@ -98,6 +115,7 @@ export default function ProfilePage() {
         return;
       }
       setAvatarUrl(result.url);
+      void syncCurrentPresence({ avatarUrl: result.url, bio, mood });
     } finally {
       URL.revokeObjectURL(localPreview);
       setUploadProgress(null);
@@ -110,7 +128,9 @@ export default function ProfilePage() {
     const saved = await updateProfileMetadata({ profile_avatar_url: null, avatar_url: null });
     if (!saved) {
       setAvatarUrl(previousAvatar);
+      return;
     }
+    void syncCurrentPresence({ avatarUrl: null, bio, mood });
   };
 
   const handleSaveBio = async () => {
@@ -119,6 +139,7 @@ export default function ProfilePage() {
     if (!saved) return;
     setBio(value);
     setIsEditingBio(false);
+    void syncCurrentPresence({ avatarUrl, bio: value || null, mood });
   };
 
   const handleDeleteBio = async () => {
@@ -127,6 +148,7 @@ export default function ProfilePage() {
     setBio("");
     setBioDraft("");
     setIsEditingBio(false);
+    void syncCurrentPresence({ avatarUrl, bio: null, mood });
   };
 
   const handleSaveMood = async () => {
@@ -135,6 +157,7 @@ export default function ProfilePage() {
     if (!saved) return;
     setMood(value);
     setIsEditingMood(false);
+    void syncCurrentPresence({ avatarUrl, bio, mood: value || null });
   };
 
   const handleDeleteMood = async () => {
@@ -143,6 +166,7 @@ export default function ProfilePage() {
     setMood("");
     setMoodDraft("");
     setIsEditingMood(false);
+    void syncCurrentPresence({ avatarUrl, bio, mood: null });
   };
 
   const initials = displayName
