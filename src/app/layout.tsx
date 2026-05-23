@@ -19,11 +19,11 @@ const displayFont = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "Lumen Duo",
-    template: "%s | Lumen Duo",
+    default: "MINT",
+    template: "%s | MINT",
   },
   description: "Private couple space with neon romance and offline-ready moments.",
-  applicationName: "Lumen Duo",
+  applicationName: "MINT",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icons/icon.svg",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Lumen Duo",
+    title: "MINT",
     statusBarStyle: "black-translucent",
   },
 };

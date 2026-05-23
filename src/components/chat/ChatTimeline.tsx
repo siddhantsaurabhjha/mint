@@ -10,10 +10,15 @@ type ChatTimelineProps = {
   currentUsername?: string | null;
   replyMap: Record<string, ChatMessage>;
   selectedMessageId: string | null;
+  menuMessageId: string | null;
   onReply: (message: ChatMessage) => void;
   onReact: (message: ChatMessage, value: string) => void;
   onOpenMedia: (url: string) => void;
   onSelectMessage: (message: ChatMessage) => void;
+  onOpenMenu: (message: ChatMessage) => void;
+  onCopyMessage: (message: ChatMessage) => void;
+  onEditMessage: (message: ChatMessage) => void;
+  onDeleteMessage: (message: ChatMessage) => void;
 };
 
 export default function ChatTimeline({
@@ -22,10 +27,15 @@ export default function ChatTimeline({
   currentUsername,
   replyMap,
   selectedMessageId,
+  menuMessageId,
   onReply,
   onReact,
   onOpenMedia,
   onSelectMessage,
+  onOpenMenu,
+  onCopyMessage,
+  onEditMessage,
+  onDeleteMessage,
 }: ChatTimelineProps) {
   const groups = groupByDate(messages);
   const isGroupedWith = (a?: ChatMessage, b?: ChatMessage) => {
@@ -60,6 +70,7 @@ export default function ChatTimeline({
                   (!!currentUsername && message.sender_username === currentUsername)
                 }
                 isSelected={selectedMessageId === message.id}
+                isMenuOpen={menuMessageId === message.id}
                 groupedWithPrev={groupedWithPrev}
                 groupedWithNext={groupedWithNext}
                 reply={replyMap[message.reply_to ?? ""]}
@@ -67,6 +78,10 @@ export default function ChatTimeline({
                 onReact={onReact}
                 onOpenMedia={onOpenMedia}
                 onSelect={onSelectMessage}
+                onOpenMenu={onOpenMenu}
+                onCopy={onCopyMessage}
+                onEdit={onEditMessage}
+                onDelete={onDeleteMessage}
               />
               );
             })}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/chat/types";
 import { formatDuration } from "@/lib/media/format";
@@ -12,18 +13,21 @@ export default function ChatVoiceBubble({
   timeLabel,
   statusLabel,
   statusTone,
+  statusIcon,
   isOwn,
 }: {
   message: ChatMessage;
   timeLabel?: string;
   statusLabel?: string | null;
   statusTone?: string;
+  statusIcon?: ComponentType<{ size?: number; strokeWidth?: number; className?: string }> | null;
   isOwn: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const duration = useMemo(() => {
     const meta = message.media_meta as Record<string, unknown> | null | undefined;
     const value = meta && typeof meta.duration === "number" ? meta.duration : 0;
@@ -53,12 +57,15 @@ export default function ChatVoiceBubble({
 
     const handleEnd = () => setIsPlaying(false);
     const handleTime = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setAudioDuration(audio.duration || 0);
     audio.addEventListener("ended", handleEnd);
     audio.addEventListener("timeupdate", handleTime);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
       audio.removeEventListener("ended", handleEnd);
       audio.removeEventListener("timeupdate", handleTime);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
   }, []);
 
@@ -86,7 +93,7 @@ export default function ChatVoiceBubble({
 
   if (!message.media_url) return null;
 
-  const effectiveDuration = duration || audioRef.current?.duration || 0;
+  const effectiveDuration = duration || audioDuration || 0;
   const progress = effectiveDuration
     ? Math.min(1, currentTime / effectiveDuration)
     : 0;
@@ -124,7 +131,10 @@ export default function ChatVoiceBubble({
           </span>
           <div className="flex items-center gap-2">
             {timeLabel ? <span>{timeLabel}</span> : null}
-            {isOwn && statusLabel ? (
+            {isOwn && statusIcon ? (() => {
+              const StatusIcon = statusIcon;
+              return <StatusIcon size={12} strokeWidth={2.4} className={statusTone ?? "text-white/70"} />;
+            })() : isOwn && statusLabel ? (
               <span className={statusTone ?? "text-white/70"}>{statusLabel}</span>
             ) : null}
           </div>

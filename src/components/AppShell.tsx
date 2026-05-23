@@ -16,6 +16,7 @@ const pageTransition = {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLogin = pathname === "/login";
+  const isChat = pathname === "/chat";
 
   return (
     <div className="relative min-h-screen app-ambient">
@@ -32,14 +33,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           className={`relative z-10 px-4 pt-[calc(24px+env(safe-area-inset-top))] ${
             isLogin
               ? "pb-[calc(24px+env(safe-area-inset-bottom))]"
-              : "pb-[calc(88px+env(safe-area-inset-bottom))]"
+              : isChat
+              ? "pb-[calc(16px+env(safe-area-inset-bottom))]"
+              : "pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+20px)]"
           }`}
         >
           {children}
         </motion.main>
       </AnimatePresence>
       <PwaManager />
-      {isLogin ? null : <BottomNav />}
+      {isLogin || isChat ? null : <BottomNav />}
     </div>
   );
 }

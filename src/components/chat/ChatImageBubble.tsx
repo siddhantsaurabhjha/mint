@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChatMessage } from "@/lib/chat/types";
+import type { ComponentType } from "react";
 import { useState } from "react";
 
 export default function ChatImageBubble({
@@ -9,6 +10,7 @@ export default function ChatImageBubble({
   timeLabel,
   statusLabel,
   statusTone,
+  statusIcon,
   isOwn,
   groupedWithPrev,
   groupedWithNext,
@@ -19,6 +21,7 @@ export default function ChatImageBubble({
   timeLabel?: string;
   statusLabel?: string | null;
   statusTone?: string;
+  statusIcon?: ComponentType<{ size?: number; strokeWidth?: number; className?: string }> | null;
   isOwn: boolean;
   groupedWithPrev: boolean;
   groupedWithNext: boolean;
@@ -57,9 +60,10 @@ export default function ChatImageBubble({
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-2 pb-2 pt-6">
           <div className="flex items-center justify-end gap-1 text-[10px] text-white/85">
             <span>{timeLabel}</span>
-            {statusLabel ? (
-              <span className={statusTone ?? "text-white/70"}>{statusLabel}</span>
-            ) : null}
+            {statusIcon ? (() => {
+              const StatusIcon = statusIcon;
+              return <StatusIcon size={12} strokeWidth={2.4} className={statusTone ?? "text-white/70"} />;
+            })() : statusLabel ? <span className={statusTone ?? "text-white/70"}>{statusLabel}</span> : null}
           </div>
         </div>
       ) : null}

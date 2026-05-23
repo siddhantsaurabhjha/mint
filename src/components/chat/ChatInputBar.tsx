@@ -45,7 +45,7 @@ export default function ChatInputBar({
   };
 
   return (
-    <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(22,26,32,0.9),rgba(12,15,20,0.9))] p-3 shadow-[0_20px_44px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+    <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(27,18,43,0.98),rgba(17,11,28,0.98))] p-3 shadow-[0_18px_36px_rgba(0,0,0,0.42)]">
       {editMessage ? (
         <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-[11px] text-emerald-100">
           <div className="min-w-0">

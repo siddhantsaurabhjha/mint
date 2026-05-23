@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ChatInputBar from "@/components/chat/ChatInputBar";
 import ChatMediaPreview from "@/components/chat/ChatMediaPreview";
 import ChatSkeleton from "@/components/chat/ChatSkeleton";
 import ChatTimeline from "@/components/chat/ChatTimeline";
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import MediaViewer from "@/components/media/MediaViewer";
-import StoriesRail from "@/components/stories/StoriesRail";
 import { useAuth } from "@/components/AuthProvider";
 import type { ChatMessage } from "@/lib/chat/types";
 import { useChatRoom } from "@/lib/chat/useChatRoom";
@@ -19,6 +19,7 @@ const IMAGE_FOLDER = "lumen-duo/chat-images";
 const VOICE_FOLDER = "lumen-duo/voice-notes";
 
 export default function ChatPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const email = user?.email ?? null;
@@ -45,6 +46,7 @@ export default function ChatPage() {
   const [activeMedia, setActiveMedia] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -177,40 +179,39 @@ export default function ChatPage() {
     setUploadProgress(null);
   };
 
-  const selectedMessage = useMemo(
-    () => messages.find((item) => item.id === selectedMessageId) ?? null,
-    [messages, selectedMessageId]
+  const menuMessage = useMemo(
+    () => messages.find((item) => item.id === menuMessageId) ?? null,
+    [menuMessageId, messages]
   );
 
   const handleSelectMessage = (item: ChatMessage) => {
     setSelectedMessageId(item.id);
+    setMenuMessageId(null);
     setShowEmojiPicker(false);
   };
 
-  const handleCopyMessage = async () => {
-    if (!selectedMessage) return;
-    const text = selectedMessage.body || selectedMessage.media_url || "";
+  const handleCopyMenuMessage = async (item: ChatMessage) => {
+    const text = item.body || item.media_url || "";
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
       // ignore clipboard errors
     }
-    setSelectedMessageId(null);
+    setMenuMessageId(null);
   };
 
-  const handleEditMessage = () => {
-    if (!selectedMessage || selectedMessage.type !== "text") return;
-    setEditingMessage(selectedMessage);
-    setMessage(selectedMessage.body ?? "");
+  const handleEditMenuMessage = (item: ChatMessage) => {
+    if (item.type !== "text") return;
+    setEditingMessage(item);
+    setMessage(item.body ?? "");
     setReplyTo(null);
-    setSelectedMessageId(null);
+    setMenuMessageId(null);
   };
 
-  const handleDeleteMessage = async () => {
-    if (!selectedMessage) return;
-    await deleteMessage(selectedMessage.id);
-    setSelectedMessageId(null);
+  const handleDeleteMenuMessage = async (item: ChatMessage) => {
+    await deleteMessage(item.id);
+    setMenuMessageId(null);
   };
 
   const handleReactMessage = (item: ChatMessage, value: string) => {
@@ -246,79 +247,39 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-140px)] w-full max-w-md flex-col gap-4">
-      <header className="sticky top-0 z-30 rounded-3xl border border-white/10 bg-black/70 px-4 py-3 backdrop-blur-2xl">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm font-semibold text-white">
+    <div className="relative mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-full max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(16,9,28,1),rgba(8,6,16,1))]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(118,61,255,0.16),transparent_42%),radial-gradient(circle_at_18%_20%,rgba(63,132,255,0.12),transparent_28%),radial-gradient(circle_at_80%_92%,rgba(159,68,255,0.08),transparent_30%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent)] opacity-50" />
+
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[linear-gradient(180deg,rgba(48,22,73,0.98),rgba(28,13,42,0.98))] px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-3 shadow-[0_10px_24px_rgba(0,0,0,0.22)]">
+        <button
+          type="button"
+          onClick={() => router.push("/stories")}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          <div className="relative h-12 w-12 overflow-hidden rounded-full border border-fuchsia-300/20 bg-[#160d26] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_0_18px_rgba(139,92,246,0.18)]">
+            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
               {partnerInitials || "LU"}
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{partnerName}</p>
-              <p className="truncate text-xs text-white/60">{presenceSubtitle}</p>
-            </div>
           </div>
-          <div
-            className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
-              partnerOnline
-                ? "border-emerald-300/40 bg-emerald-300/10 text-emerald-100"
-                : "border-white/15 bg-white/5 text-white/60"
-            }`}
-          >
-            {partnerOnline ? "Online" : "Offline"}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{partnerName}</p>
+            <p className="truncate text-xs text-white/65">{presenceSubtitle}</p>
           </div>
-        </div>
-        {selectedMessage ? (
-          <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70">
-            <span className="truncate">1 selected</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCopyMessage}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70"
-              >
-                Copy
-              </button>
-              {selectedMessage.sender_id === userId && selectedMessage.type === "text" ? (
-                <button
-                  type="button"
-                  onClick={handleEditMessage}
-                  className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-emerald-100"
-                >
-                  Edit
-                </button>
-              ) : null}
-              {selectedMessage.sender_id === userId ? (
-                <button
-                  type="button"
-                  onClick={handleDeleteMessage}
-                  className="rounded-full border border-rose-300/40 bg-rose-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-rose-100"
-                >
-                  Delete
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setSelectedMessageId(null)}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70"
-              >
-                Cancel
-              </button>
-            </div>
+          <div className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] ${partnerOnline ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-100" : "border-white/10 bg-white/5 text-white/60"}`}>
+            {partnerOnline ? "Online" : "Last seen"}
           </div>
-        ) : null}
+        </button>
       </header>
 
-      <StoriesRail />
-
-      <section className="flex flex-1 flex-col gap-3">
-        <div
-          className="flex-1 space-y-4 overflow-y-auto scroll-smooth px-1 pb-4"
-          onClick={() => {
-            setSelectedMessageId(null);
-            setShowEmojiPicker(false);
-          }}
-        >
+      <section
+        className="flex flex-1 flex-col overflow-hidden"
+        onClick={() => {
+          setSelectedMessageId(null);
+          setShowEmojiPicker(false);
+        }}
+      >
+        <div className="flex-1 overflow-y-auto px-3 py-4 scroll-smooth">
           {isLoading && messages.length === 0 ? (
             <ChatSkeleton />
           ) : messages.length === 0 ? (
@@ -332,14 +293,22 @@ export default function ChatPage() {
               currentUsername={currentUsername}
               replyMap={replyMap}
               selectedMessageId={selectedMessageId}
+              menuMessageId={menuMessageId}
               onReply={setReplyTo}
               onReact={handleReactMessage}
               onOpenMedia={setActiveMedia}
               onSelectMessage={handleSelectMessage}
+              onOpenMenu={(item) => {
+                setMenuMessageId((prev) => (prev === item.id ? null : item.id));
+                setSelectedMessageId(null);
+              }}
+              onCopyMessage={handleCopyMenuMessage}
+              onEditMessage={handleEditMenuMessage}
+              onDeleteMessage={handleDeleteMenuMessage}
             />
           )}
           {typingNames.length > 0 ? (
-            <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-white/60">
+            <div className="mt-3 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-white/60">
               {typingNames.join(", ")} typing...
             </div>
           ) : null}
@@ -347,15 +316,21 @@ export default function ChatPage() {
         </div>
 
         {isRecording ? (
-          <VoiceRecorder
-            onRecorded={handleRecorded}
-            onCancel={() => setIsRecording(false)}
-          />
+          <div className="px-3 pb-2">
+            <VoiceRecorder onRecorded={handleRecorded} onCancel={() => setIsRecording(false)} />
+          </div>
         ) : null}
 
         {showEmojiPicker ? (
-          <div className="rounded-2xl border border-white/10 bg-black/70 px-3 py-2 text-lg text-white">
-            {["😀", "😅", "😂", "😍", "👍", "🙏"].map((emoji) => (
+          <div className="mx-3 mb-2 rounded-2xl border border-white/10 bg-[#140f1f] px-3 py-2 text-lg text-white">
+            {[
+              "😀",
+              "😅",
+              "😂",
+              "😍",
+              "👍",
+              "🙏",
+            ].map((emoji) => (
               <button
                 key={emoji}
                 type="button"
@@ -368,7 +343,7 @@ export default function ChatPage() {
           </div>
         ) : null}
 
-        <div className="sticky bottom-[calc(92px+env(safe-area-inset-bottom))]">
+        <div className="sticky bottom-0 z-30 border-t border-white/10 bg-[#120d20] px-3 pb-[calc(10px+env(safe-area-inset-bottom))] pt-3">
           <ChatInputBar
             value={message}
             onChange={setMessage}
@@ -397,6 +372,15 @@ export default function ChatPage() {
           />
         </div>
       </section>
+
+      {menuMessage ? (
+        <button
+          type="button"
+          onClick={() => setMenuMessageId(null)}
+          className="fixed inset-0 z-40 bg-black/30"
+          aria-label="Close actions"
+        />
+      ) : null}
 
       <ChatMediaPreview
         src={previewSrc}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import ScreenHeader from "@/components/ScreenHeader";
+import { Plus } from "lucide-react";
 import GalleryGrid from "@/components/gallery/GalleryGrid";
 import GalleryViewer from "@/components/gallery/GalleryViewer";
 import UploadProgress from "@/components/media/UploadProgress";
@@ -113,39 +113,46 @@ export default function GalleryPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6">
-      <ScreenHeader
-        title="Gallery"
-        subtitle="Shared neon memories, pinned forever."
-        right={
+    <div className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-8px)] w-full max-w-md flex-col overflow-hidden">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[linear-gradient(180deg,rgba(33,20,52,0.98),rgba(19,12,31,0.98))] px-4 pt-[calc(12px+env(safe-area-inset-top))] pb-3 shadow-[0_10px_22px_rgba(0,0,0,0.25)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[30px] font-semibold leading-tight text-white">Gallery</h1>
+            <p className="mt-1 text-xs text-white/65">Shared your lovable memories.</p>
+          </div>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-white/70"
+            className="mt-1 flex h-11 w-11 items-center justify-center rounded-full border border-fuchsia-300/25 bg-[linear-gradient(140deg,rgba(114,63,240,0.95),rgba(64,39,122,0.95))] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_18px_rgba(126,77,255,0.28)] transition active:scale-95"
+            aria-label="Upload memory"
           >
-            Upload
+            <Plus size={18} strokeWidth={2.1} />
           </button>
-        }
-      />
+        </div>
+      </header>
 
-      {isUploading && uploadProgress !== null ? (
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
-          <p className="text-sm text-white/70">Uploading to gallery...</p>
-          <UploadProgress value={uploadProgress} />
-        </div>
-      ) : null}
+      <section className="flex-1 overflow-y-auto scroll-smooth px-0">
+        <div className="px-1 py-4">
+          {isUploading && uploadProgress !== null ? (
+            <div className="mx-3 mb-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-sm text-white/70">Uploading to gallery...</p>
+              <UploadProgress value={uploadProgress} />
+            </div>
+          ) : null}
 
-      {isLoading ? (
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/70">
-          Loading gallery...
+          {isLoading ? (
+            <div className="mx-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/70">
+              Loading gallery...
+            </div>
+          ) : items.length === 0 ? (
+            <div className="mx-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/70">
+              The shared gallery is empty. Upload a memory.
+            </div>
+          ) : (
+            <GalleryGrid items={items} onOpen={(item) => setActiveItem(item)} />
+          )}
         </div>
-      ) : items.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/70">
-          The shared gallery is empty. Upload a memory.
-        </div>
-      ) : (
-        <GalleryGrid items={items} onOpen={(item) => setActiveItem(item)} />
-      )}
+      </section>
 
       <input
         ref={fileInputRef}

@@ -10,9 +10,15 @@ import { resolveUsernameFromEmail } from "@/lib/auth";
 export default function StoriesRail({
   showEmptyState = false,
   showAdd = false,
+  addLabel,
+  onCreate,
+  orderByUsernames,
 }: {
   showEmptyState?: boolean;
   showAdd?: boolean;
+  addLabel?: string;
+  onCreate?: () => void;
+  orderByUsernames?: string[];
 }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -47,7 +53,7 @@ export default function StoriesRail({
   }, [views, userId]);
 
   const stripItems = useMemo(() => {
-    return stories.reduce(
+    const base = stories.reduce(
       (acc, item) => {
         if (acc.some((entry) => entry.userId === item.user_id)) return acc;
         acc.push({
@@ -69,7 +75,18 @@ export default function StoriesRail({
         isSeen: boolean;
       }[]
     );
-  }, [stories, seenById]);
+
+    if (!orderByUsernames || orderByUsernames.length === 0) return base;
+    const order = orderByUsernames.map((name) => name.toLowerCase());
+    return [...base].sort((a, b) => {
+      const aIndex = order.indexOf(a.username.toLowerCase());
+      const bIndex = order.indexOf(b.username.toLowerCase());
+      if (aIndex === -1 && bIndex === -1) return 0;
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+  }, [stories, seenById, orderByUsernames]);
 
   const viewerStories = useMemo(() => {
     if (!activeUserId) return stories;
@@ -101,7 +118,7 @@ export default function StoriesRail({
     );
   }
 
-  if (stripItems.length === 0 && showEmptyState) {
+  if (stripItems.length === 0 && showEmptyState && !showAdd) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
         No stories yet.
@@ -111,8 +128,14 @@ export default function StoriesRail({
 
   return (
     <div className="space-y-3">
-      {stripItems.length > 0 ? (
-        <StoryStrip items={stripItems} onOpen={handleOpen} showAdd={showAdd} />
+      {stripItems.length > 0 || showAdd ? (
+        <StoryStrip
+          items={stripItems}
+          onOpen={handleOpen}
+          showAdd={showAdd}
+          addLabel={addLabel}
+          onCreate={onCreate}
+        />
       ) : null}
       <StoryViewer
         stories={viewerStories}

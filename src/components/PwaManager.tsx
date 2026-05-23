@@ -83,11 +83,11 @@ export default function PwaManager() {
   if (!showInstall && !showNotify) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom))] z-[60] px-4">
+    <div className="fixed inset-x-0 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+12px)] z-[60] px-4">
       <div className="mx-auto flex max-w-md flex-col gap-2 rounded-3xl border border-white/10 bg-white/10 px-4 py-3 text-white backdrop-blur-2xl">
         {showInstall ? (
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span>Install Lumen Duo</span>
+            <span>Install MINT</span>
             <button
               type="button"
               onClick={handleInstall}
