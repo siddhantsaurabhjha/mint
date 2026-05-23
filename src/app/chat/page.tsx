@@ -14,6 +14,7 @@ import { useChatRoom } from "@/lib/chat/useChatRoom";
 import { formatDateLabel, formatTime } from "@/lib/chat/utils";
 import { resolveUsernameFromEmail } from "@/lib/auth";
 import { getUploadSignature, uploadToCloudinary } from "@/lib/media/upload";
+import { useProfileRecord } from "@/lib/profile/useProfileRecord";
 
 const IMAGE_FOLDER = "lumen-duo/chat-images";
 const VOICE_FOLDER = "lumen-duo/voice-notes";
@@ -97,15 +98,13 @@ export default function ChatPage() {
     const ids = Object.keys(lastSeen).filter((id) => id !== userId);
     return ids[0] ?? null;
   }, [lastSeen, userId]);
-  const partnerName = useMemo(() => {
-    const fromPresence = onlineUsers.find((item) => item.user_id !== userId)?.username;
-    if (fromPresence) return fromPresence;
-    const fromMessage = [...messages]
-      .reverse()
-      .find((item) => item.sender_id !== userId)?.sender_username;
-    return fromMessage ?? "Partner";
-  }, [messages, onlineUsers, userId]);
-  const partnerInitials = partnerName
+  const { profile: partnerProfile } = useProfileRecord(partnerId, null);
+  const partnerName = partnerProfile?.name ?? "";
+  const partnerBio = partnerProfile?.bio?.trim() || null;
+  const partnerMood = partnerProfile?.mood?.trim() || null;
+  const partnerAvatarUrl = partnerProfile?.avatar_url ?? null;
+  const partnerDisplayName = partnerName || "Partner";
+  const partnerInitials = partnerDisplayName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -276,16 +275,35 @@ export default function ChatPage() {
           className="flex w-full items-center gap-3 text-left"
         >
           <div className="relative h-12 w-12 overflow-hidden rounded-full border border-fuchsia-300/20 bg-[#160d26] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_0_18px_rgba(139,92,246,0.18)]">
-            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
-              {partnerInitials || "LU"}
-            </div>
+            {partnerAvatarUrl ? (
+              <img
+                src={partnerAvatarUrl}
+                alt={partnerDisplayName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
+                {partnerInitials || "LU"}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">{partnerName}</p>
-            <p className="truncate text-xs text-white/65">{presenceSubtitle}</p>
+            <p className="truncate text-sm font-semibold text-white">{partnerDisplayName}</p>
+            {partnerBio ? (
+              <p className="truncate text-xs text-white/65">{partnerBio}</p>
+            ) : (
+              <p className="truncate text-xs text-white/65">{presenceSubtitle}</p>
+            )}
           </div>
-          <div className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] ${partnerOnline ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-100" : "border-white/10 bg-white/5 text-white/60"}`}>
-            {partnerOnline ? "Online" : "Last seen"}
+          <div className="flex flex-col items-end gap-2">
+            {partnerMood ? (
+              <span className="max-w-24 truncate rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                {partnerMood}
+              </span>
+            ) : null}
+            <div className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] ${partnerOnline ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-100" : "border-white/10 bg-white/5 text-white/60"}`}>
+              {partnerOnline ? "Online" : "Last seen"}
+            </div>
           </div>
         </button>
       </header>
