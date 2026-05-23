@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { deleteCloudinaryAsset } from "@/lib/media/upload";
 import { extractCloudinaryPublicId } from "@/lib/media/cloudinary";
@@ -121,47 +122,54 @@ export function useStories({
       })
     );
 
-    await supabase
-      .from("stories")
-      .delete()
-      .lt("expires_at", new Date().toISOString());
+    await supabase.from("stories").delete().lt("expires_at", new Date().toISOString());
   }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
+    let channel: RealtimeChannel | null = null;
+    let isCancelled = false;
+
     void (async () => {
       await fetchStories();
       await loadReactions();
       await loadComments();
       await loadViews();
       await cleanupExpiredStories();
+
+      const staleChannel = supabase
+        .getChannels()
+        .find((item) => item.topic === "realtime:stories");
+
+      if (staleChannel) {
+        await supabase.removeChannel(staleChannel);
+      }
+
+      if (isCancelled) return;
+
+      channel = supabase
+        .channel("stories")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "stories",
+          },
+          () => {
+            fetchStories();
+          }
+        )
+        .subscribe();
     })();
 
-    const channel = supabase
-      .channel("stories")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "stories",
-        },
-        () => {
-          fetchStories();
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(channel);
+      isCancelled = true;
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
-  }, [
-    loadReactions,
-    loadComments,
-    loadViews,
-    cleanupExpiredStories,
-    fetchStories,
-  ]);
+  }, [loadComments, loadReactions, loadViews, cleanupExpiredStories, fetchStories]);
 
   const createStory = useCallback(
     async ({
@@ -182,11 +190,7 @@ export function useStories({
         media_url: mediaUrl,
         caption: caption ?? null,
       };
-      const result = await supabase
-        .from("stories")
-        .insert(payload)
-        .select("*")
-        .single();
+      const result = await supabase.from("stories").insert(payload).select("*").single();
 
       if (!result.error && result.data) {
         setStories((prev) => [result.data as StoryItem, ...prev]);
