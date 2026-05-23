@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import type { ChatMessage } from "@/lib/chat/types";
+import type { ChatMessage, ChatReceipt } from "@/lib/chat/types";
 import { MESSAGE_LIMIT, ROOM_ID } from "@/lib/chat/constants";
 import { readCachedMessages, writeCachedMessages } from "@/lib/chat/cache";
 import { isAllowedEmail, resolveUsernameFromEmail } from "@/lib/auth";
@@ -57,8 +57,10 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
   const [onlineUsers, setOnlineUsers] = useState<PresenceState[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   const [profileByUserId, setProfileByUserId] = useState<Record<string, ProfileSnapshot>>({});
+  const [partnerUserId, setPartnerUserId] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+  const receiptsChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushedMessageIdsRef = useRef<Set<string>>(new Set());
@@ -135,24 +137,84 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
     setMessages((prev) => prev.filter((message) => message.id !== messageId));
   }, []);
 
-  const markDeliveredAndSeen = useCallback(
+  const applyReceiptsToMessages = useCallback(
+    (receipts: ChatReceipt[]) => {
+      if (!receipts.length) return;
+      setMessages((prev) =>
+        prev.map((message) => {
+          const receipt = receipts.find(
+            (item) => item.message_id === message.id && item.user_id !== message.sender_id
+          );
+
+          if (!receipt) return message;
+
+          return {
+            ...message,
+            delivered_at: receipt.delivered_at ?? message.delivered_at,
+            seen_at: receipt.seen_at ?? message.seen_at,
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const upsertReceiptsForIncoming = useCallback(
     async (items: ChatMessage[]) => {
+      if (!userId) return;
       const supabase = getSupabaseBrowserClient();
-      const updates = items.filter((message) => message.sender_id !== userId);
+      const updates = items.filter(
+        (message) =>
+          message.sender_id !== userId &&
+          message.recipient_id === userId
+      );
 
       if (updates.length === 0) return;
 
+      const nowIso = new Date().toISOString();
+      const isVisible = typeof document !== "undefined" && document.visibilityState === "visible";
+
       await Promise.all(
-        updates.map((message) =>
-          supabase
-            .from("chat_messages")
+        updates.map(async (message) => {
+          const deliveredAt = nowIso;
+          const seenAt = isVisible ? nowIso : null;
+          const { data: existing } = await supabase
+            .from("chat_receipts")
+            .select("id, delivered_at, seen_at")
+            .eq("message_id", message.id)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase.from("chat_receipts").insert({
+              message_id: message.id,
+              user_id: userId,
+              delivered_at: deliveredAt,
+              seen_at: seenAt,
+            });
+            return;
+          }
+
+          await supabase
+            .from("chat_receipts")
             .update({
-              delivered_at: message.delivered_at ?? new Date().toISOString(),
-              seen_at: new Date().toISOString(),
+              delivered_at: existing.delivered_at ?? deliveredAt,
+              seen_at: existing.seen_at ?? seenAt,
             })
-            .eq("id", message.id)
-        )
+            .eq("id", existing.id);
+        })
       );
+    },
+    [userId]
+  );
+
+  const resolveAndSetPartnerUserId = useCallback(
+    (allMessages: ChatMessage[]) => {
+      if (!userId) return;
+      const fromMessages = [...allMessages].reverse().find((item) => item.sender_id !== userId)?.sender_id;
+      if (fromMessages) {
+        setPartnerUserId((prev) => prev ?? fromMessages);
+      }
     },
     [userId]
   );
@@ -161,13 +223,45 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
     const cached = readCachedMessages(ROOM_ID);
     if (cached.length) {
       setMessages(cached);
+      resolveAndSetPartnerUserId(cached);
     }
-  }, []);
+  }, [resolveAndSetPartnerUserId]);
+
+  useEffect(() => {
+    if (!userId || !allowed || partnerUserId) return;
+    const supabase = getSupabaseBrowserClient();
+
+    supabase
+      .from("profiles")
+      .select("user_id")
+      .neq("user_id", userId)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.user_id) {
+          setPartnerUserId(data.user_id as string);
+        }
+      });
+  }, [allowed, partnerUserId, userId]);
+
+  useEffect(() => {
+    if (!userId || !allowed) return;
+    const markVisibleAsSeen = () => {
+      if (document.visibilityState !== "visible") return;
+      void upsertReceiptsForIncoming(messages);
+    };
+
+    markVisibleAsSeen();
+    document.addEventListener("visibilitychange", markVisibleAsSeen);
+    return () => document.removeEventListener("visibilitychange", markVisibleAsSeen);
+  }, [allowed, messages, upsertReceiptsForIncoming, userId]);
 
   useEffect(() => {
     if (!userId || !allowed) return undefined;
     const supabase = getSupabaseBrowserClient();
     let isMounted = true;
+    let roomChannel: RealtimeChannel | null = null;
+    let receiptsChannel: RealtimeChannel | null = null;
 
     supabase
       .from("chat_messages")
@@ -178,15 +272,28 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
       .then(({ data, error }) => {
         if (!isMounted) return;
         if (!error && data) {
-          upsertMessages(data as ChatMessage[]);
-          markDeliveredAndSeen(data as ChatMessage[]);
+          const nextMessages = data as ChatMessage[];
+          upsertMessages(nextMessages);
+          resolveAndSetPartnerUserId(nextMessages);
+          void upsertReceiptsForIncoming(nextMessages);
         }
         setIsLoading(false);
       });
 
-    const channel = supabase.channel(`room:${ROOM_ID}`);
+    supabase
+      .from("chat_receipts")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (!error && data) {
+          applyReceiptsToMessages(data as ChatReceipt[]);
+        }
+      });
 
-    channel
+    roomChannel = supabase.channel(`room:${ROOM_ID}`);
+
+    roomChannel
       .on(
         "postgres_changes",
         {
@@ -198,7 +305,25 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
         (payload) => {
           const next = payload.new as ChatMessage;
           upsertMessages([next]);
-          markDeliveredAndSeen([next]);
+          resolveAndSetPartnerUserId([next]);
+          void upsertReceiptsForIncoming([next]);
+
+          if (
+            next.sender_id !== userId &&
+            typeof window !== "undefined" &&
+            Notification.permission === "granted" &&
+            document.visibilityState === "visible"
+          ) {
+            const senderName = toNotificationName(next.sender_username);
+            const notification = new Notification("MINT", {
+              body: `${senderName} sent a message`,
+              tag: `mint-local-${next.id}`,
+            });
+            notification.onclick = () => {
+              window.focus();
+              window.location.assign("/chat");
+            };
+          }
 
           if (next.sender_id === userId && !pushedMessageIdsRef.current.has(next.id)) {
             pushedMessageIdsRef.current.add(next.id);
@@ -298,11 +423,11 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
         broadcastProfileSnapshot();
       });
 
-    channel.subscribe((status) => {
+    roomChannel.subscribe((status) => {
       if (status !== "SUBSCRIBED") return;
       broadcastProfileSnapshot();
       if (!userId) return;
-      channel.send({
+      roomChannel?.send({
         type: "broadcast",
         event: PROFILE_SYNC_REQUEST_EVENT,
         payload: {
@@ -310,14 +435,50 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
         },
       });
     });
-    channelRef.current = channel;
+
+    receiptsChannel = supabase
+      .channel(`receipts:${ROOM_ID}:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_receipts",
+        },
+        (payload) => {
+          if (payload.eventType === "DELETE") return;
+          const next = payload.new as ChatReceipt;
+          applyReceiptsToMessages([next]);
+        }
+      )
+      .subscribe();
+
+    channelRef.current = roomChannel;
+    receiptsChannelRef.current = receiptsChannel;
 
     return () => {
       isMounted = false;
-      channelRef.current?.unsubscribe();
+      if (roomChannel) {
+        void supabase.removeChannel(roomChannel);
+      }
+      if (receiptsChannel) {
+        void supabase.removeChannel(receiptsChannel);
+      }
       channelRef.current = null;
+      receiptsChannelRef.current = null;
     };
-  }, [userId, username, markDeliveredAndSeen, upsertMessages, removeMessage, upsertProfileSnapshot, broadcastProfileSnapshot]);
+  }, [
+    userId,
+    username,
+    allowed,
+    upsertMessages,
+    removeMessage,
+    upsertProfileSnapshot,
+    broadcastProfileSnapshot,
+    applyReceiptsToMessages,
+    resolveAndSetPartnerUserId,
+    upsertReceiptsForIncoming,
+  ]);
 
   useEffect(() => {
     if (!userId) return;
@@ -333,6 +494,9 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
 
     const applyPresenceState = (state: PresenceState) => {
       if (!isMounted) return;
+      if (state.user_id && state.user_id !== userId) {
+        setPartnerUserId((prev) => prev ?? state.user_id);
+      }
       setOnlineUsers((prev) => {
         const map = new Map(prev.map((item) => [item.user_id, item]));
         map.set(state.user_id, state);
@@ -404,7 +568,9 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
 
     return () => {
       isMounted = false;
-      presenceChannelRef.current?.unsubscribe();
+      if (presenceChannelRef.current) {
+        void supabase.removeChannel(presenceChannelRef.current);
+      }
       presenceChannelRef.current = null;
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", handlePageHide);
@@ -438,14 +604,20 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
       if (!userId || !username || !allowed) {
         return { data: null, error: { message: "User not allowed." } };
       }
+      if (!partnerUserId) {
+        return { data: null, error: { message: "Recipient unavailable." } };
+      }
       const supabase = getSupabaseBrowserClient();
+      const createdAt = new Date().toISOString();
       const payload: Record<string, unknown> = {
         room_id: ROOM_ID,
         sender_id: userId,
+        recipient_id: partnerUserId,
         sender_username: username,
-        body: body ? body : null,
+        body: body ?? "",
         type: type ?? "text",
         reply_to: replyTo ?? null,
+        created_at: createdAt,
       };
 
       if (mediaUrl) {
@@ -468,7 +640,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
 
       return { data, error };
     },
-    [userId, username, allowed, upsertMessages]
+    [userId, username, allowed, partnerUserId, upsertMessages]
   );
 
   const deleteMessage = useCallback(
@@ -579,6 +751,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
     typingNames,
     onlineUsers,
     lastSeen,
+    partnerUserId,
     profileByUserId,
     sendMessage,
     deleteMessage,

@@ -32,6 +32,7 @@ export default function ChatPage() {
     typingNames,
     onlineUsers,
     lastSeen,
+    partnerUserId,
     sendMessage,
     deleteMessage,
     notifyTyping,
@@ -93,14 +94,9 @@ export default function ChatPage() {
   }, [previewSrc]);
 
   const partnerOnline = onlineUsers.some((item) => item.user_id !== userId);
-  const partnerId = useMemo(() => {
-    if (!userId) return null;
-    const ids = Object.keys(lastSeen).filter((id) => id !== userId);
-    return ids[0] ?? null;
-  }, [lastSeen, userId]);
+  const partnerId = partnerUserId;
   const { profile: partnerProfile } = useProfileRecord(partnerId, null);
   const partnerName = partnerProfile?.name ?? "";
-  const partnerBio = partnerProfile?.bio?.trim() || null;
   const partnerMood = partnerProfile?.mood?.trim() || null;
   const partnerAvatarUrl = partnerProfile?.avatar_url ?? null;
   const partnerDisplayName = partnerName || "Partner";
@@ -289,11 +285,7 @@ export default function ChatPage() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{partnerDisplayName}</p>
-            {partnerBio ? (
-              <p className="truncate text-xs text-white/65">{partnerBio}</p>
-            ) : (
-              <p className="truncate text-xs text-white/65">{presenceSubtitle}</p>
-            )}
+            <p className="truncate text-xs text-white/65">{presenceSubtitle}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             {partnerMood ? (

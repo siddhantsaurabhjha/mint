@@ -81,7 +81,7 @@ export default function Home() {
     username,
   });
 
-  const { messages, onlineUsers, lastSeen } = useChatRoom({
+  const { messages, onlineUsers, lastSeen, partnerUserId } = useChatRoom({
     userId: user?.id ?? "",
     email,
   });
@@ -104,20 +104,7 @@ export default function Home() {
     [stories, user?.id]
   );
   const partnerOnline = onlineUsers.some((item) => item.user_id !== user?.id);
-  const partnerId = useMemo(() => {
-    if (!user?.id) return null;
-
-    const fromPresence = onlineUsers.find((item) => item.user_id !== user.id)?.user_id;
-    if (fromPresence) return fromPresence;
-
-    const fromLastSeen = Object.keys(lastSeen).find((id) => id !== user.id);
-    if (fromLastSeen) return fromLastSeen;
-
-    const fromMessages = [...messages].reverse().find((item) => item.sender_id !== user.id)?.sender_id;
-    if (fromMessages) return fromMessages;
-
-    return null;
-  }, [lastSeen, messages, onlineUsers, user?.id]);
+  const partnerId = partnerUserId;
 
   const { profile: partnerProfile } = useProfileRecord(partnerId, null);
 
