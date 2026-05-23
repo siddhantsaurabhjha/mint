@@ -21,13 +21,11 @@ export default function StoriesPage() {
   const username = email ? resolveUsernameFromEmail(email) : null;
   const {
     stories,
-    reactions,
     comments,
     views,
     isLoading,
     createStory,
     deleteStory,
-    addReaction,
     addComment,
     markSeen,
   } = useStories({ userId, username });
@@ -197,11 +195,9 @@ export default function StoriesPage() {
         activeId={activeId}
         onClose={() => setActiveId(null)}
         onSeen={markSeen}
-        onReact={addReaction}
         onComment={addComment}
         onDelete={deleteStory}
         currentUserId={userId}
-        reactions={reactions}
         comments={comments}
         views={views}
         userMap={userMap}

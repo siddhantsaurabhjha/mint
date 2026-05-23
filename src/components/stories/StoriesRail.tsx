@@ -26,12 +26,10 @@ export default function StoriesRail({
   const username = email ? resolveUsernameFromEmail(email) : null;
   const {
     stories,
-    reactions,
     comments,
     views,
     isLoading,
     deleteStory,
-    addReaction,
     addComment,
     markSeen,
   } = useStories({ userId, username });
@@ -142,11 +140,9 @@ export default function StoriesRail({
         activeId={activeId}
         onClose={handleClose}
         onSeen={markSeen}
-        onReact={addReaction}
         onComment={addComment}
         onDelete={deleteStory}
         currentUserId={userId}
-        reactions={reactions}
         comments={comments}
         views={views}
         userMap={userMap}

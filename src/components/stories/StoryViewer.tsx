@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   StoryComment,
   StoryItem,
-  StoryReaction,
   StoryView,
 } from "@/lib/stories/useStories";
 
@@ -16,11 +15,9 @@ export default function StoryViewer({
   activeId,
   onClose,
   onSeen,
-  onReact,
   onComment,
   onDelete,
   currentUserId,
-  reactions,
   comments,
   views,
   userMap,
@@ -29,11 +26,9 @@ export default function StoryViewer({
   activeId: string | null;
   onClose: () => void;
   onSeen: (storyId: string) => void;
-  onReact: (storyId: string, reaction: string) => void;
   onComment: (storyId: string, body: string) => void;
   onDelete: (story: StoryItem) => void;
   currentUserId: string | null;
-  reactions: StoryReaction[];
   comments: StoryComment[];
   views: StoryView[];
   userMap: Record<string, string>;
@@ -42,6 +37,7 @@ export default function StoryViewer({
   const [progress, setProgress] = useState(0);
   const [commentText, setCommentText] = useState("");
   const [replyTarget, setReplyTarget] = useState<string | null>(null);
+  const [isOwnerViewing, setIsOwnerViewing] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const story = stories[activeIndex] ?? null;
@@ -52,14 +48,20 @@ export default function StoryViewer({
     () => comments.filter((item) => item.story_id === activeStoryId),
     [comments, activeStoryId]
   );
-  const storyReactions = useMemo(
-    () => reactions.filter((item) => item.story_id === activeStoryId),
-    [reactions, activeStoryId]
-  );
   const storyViews = useMemo(
     () => views.filter((item) => item.story_id === activeStoryId),
     [views, activeStoryId]
   );
+
+  const ownerViewers = useMemo(() => {
+    if (!story || story.user_id !== currentUserId) return [];
+    return storyViews
+      .filter((view) => view.user_id !== currentUserId)
+      .map((view) => ({
+        id: view.id,
+        name: userMap[view.user_id] ?? "Partner",
+      }));
+  }, [currentUserId, story, storyViews, userMap]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -71,6 +73,7 @@ export default function StoryViewer({
     if (!story || !activeId) return;
     onSeen(story.id);
     setProgress(0);
+    setIsOwnerViewing(story.user_id === currentUserId);
   }, [story, activeId, onSeen]);
 
   useEffect(() => {
@@ -90,6 +93,16 @@ export default function StoryViewer({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [story, activeId]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || story?.type !== "video" || !story.media_url) return;
+    video.muted = false;
+    video.playsInline = true;
+    video.play().catch(() => {
+      // Browsers may block autoplay until a tap; controls remain available.
+    });
+  }, [story?.id, story?.type, story?.media_url]);
 
   const goNext = () => {
     if (activeIndex + 1 >= stories.length) {
@@ -120,8 +133,6 @@ export default function StoryViewer({
     setReplyTarget(null);
   };
 
-  const quickReactions = ["<3", "shine", "fire", "wow", "kiss"];
-
   return (
     <AnimatePresence>
       {isOpen ? (
@@ -129,7 +140,7 @@ export default function StoryViewer({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex flex-col bg-black"
+          className="fixed inset-0 z-80 flex flex-col bg-black"
         >
           <div className="px-4 pt-4">
             <div className="flex gap-1">
@@ -161,6 +172,18 @@ export default function StoryViewer({
               <p className="text-[11px] text-white/60">
                 {storyViews.length} seen
               </p>
+              {isOwnerViewing && ownerViewers.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {ownerViewers.map((viewer) => (
+                    <span
+                      key={viewer.id}
+                      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/70"
+                    >
+                      {viewer.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.2em] text-white/60">
               {story.user_id === currentUserId ? (
@@ -188,7 +211,8 @@ export default function StoryViewer({
                 onTimeUpdate={handleVideoTime}
                 onEnded={goNext}
                 autoPlay
-                muted
+                muted={false}
+                controls
                 playsInline
               />
             ) : story.media_url ? (
@@ -215,22 +239,6 @@ export default function StoryViewer({
                 {story.caption}
               </div>
             ) : null}
-            <div className="flex items-center gap-2">
-              {quickReactions.map((reaction) => (
-                <button
-                  key={reaction}
-                  type="button"
-                  onClick={() => onReact(story.id, reaction)}
-                  className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs"
-                >
-                  {reaction}
-                </button>
-              ))}
-              <div className="ml-auto text-[11px] text-white/60">
-                {storyReactions.length} reactions
-              </div>
-            </div>
-
             <div className="max-h-24 space-y-2 overflow-y-auto">
               {storyComments.map((comment) => {
                 const displayName =

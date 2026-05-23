@@ -104,7 +104,7 @@ export default function Home() {
     [stories, user?.id]
   );
   const partnerStoryImage = latestPartnerStory?.media_url ?? null;
-  const partnerStoryLabel = latestPartnerStory?.caption?.trim() || "No story uploaded yet";
+  const partnerStoryLabel = latestPartnerStory?.caption?.trim() || null;
   const partnerOnline = onlineUsers.some((item) => item.user_id !== user?.id);
   const partnerId = useMemo(() => {
     if (!user?.id) return null;
@@ -247,7 +247,9 @@ export default function Home() {
                 <p className="truncate text-sm font-semibold text-white">
                   {partnerName || "Stories"}
                 </p>
-                <p className="mt-1 truncate text-xs text-white/65">{partnerStoryLabel}</p>
+                {partnerStoryLabel ? (
+                  <p className="mt-1 truncate text-xs text-white/65">{partnerStoryLabel}</p>
+                ) : null}
               </div>
 
               <ChevronRight size={18} className="shrink-0 text-white/50" />
@@ -255,7 +257,7 @@ export default function Home() {
           </GlassCard>
         </Link>
         <StoriesRail
-          showEmptyState
+          showEmptyState={false}
           showAdd
           addLabel="Your Story"
           orderByUsernames={partnerUsername ? [partnerUsername] : undefined}

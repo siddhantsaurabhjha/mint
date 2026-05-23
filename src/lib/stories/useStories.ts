@@ -6,6 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { deleteCloudinaryAsset } from "@/lib/media/upload";
 import { extractCloudinaryPublicId } from "@/lib/media/cloudinary";
 import { sendPushNotification } from "@/lib/pwa/push";
+import { ROOM_ID } from "@/lib/chat/constants";
 
 export type StoryItem = {
   id: string;
@@ -16,14 +17,6 @@ export type StoryItem = {
   caption: string | null;
   created_at: string;
   expires_at: string;
-};
-
-export type StoryReaction = {
-  id: string;
-  story_id: string;
-  user_id: string;
-  reaction: string;
-  created_at: string;
 };
 
 export type StoryComment = {
@@ -49,7 +42,6 @@ export function useStories({
   username: string | null;
 }) {
   const [stories, setStories] = useState<StoryItem[]>([]);
-  const [reactions, setReactions] = useState<StoryReaction[]>([]);
   const [comments, setComments] = useState<StoryComment[]>([]);
   const [views, setViews] = useState<StoryView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,21 +62,10 @@ export function useStories({
     setIsLoading(false);
   }, [nowIso]);
 
-  const loadReactions = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase
-      .from("story_reactions")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (data) {
-      setReactions(data as StoryReaction[]);
-    }
-  }, []);
-
   const loadComments = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();
     const { data } = await supabase
-      .from("story_replies")
+      .from("story_comments")
       .select("*")
       .order("created_at", { ascending: true });
     if (data) {
@@ -132,7 +113,6 @@ export function useStories({
 
     void (async () => {
       await fetchStories();
-      await loadReactions();
       await loadComments();
       await loadViews();
       await cleanupExpiredStories();
@@ -160,6 +140,28 @@ export function useStories({
             fetchStories();
           }
         )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "story_comments",
+          },
+          () => {
+            loadComments();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "story_views",
+          },
+          () => {
+            loadViews();
+          }
+        )
         .subscribe();
     })();
 
@@ -169,7 +171,7 @@ export function useStories({
         void supabase.removeChannel(channel);
       }
     };
-  }, [loadComments, loadReactions, loadViews, cleanupExpiredStories, fetchStories]);
+  }, [loadComments, loadViews, cleanupExpiredStories, fetchStories]);
 
   const createStory = useCallback(
     async ({
@@ -221,37 +223,17 @@ export function useStories({
     const { error } = await supabase.from("stories").delete().eq("id", story.id);
     if (!error) {
       setStories((prev) => prev.filter((item) => item.id !== story.id));
-      setReactions((prev) => prev.filter((item) => item.story_id !== story.id));
       setComments((prev) => prev.filter((item) => item.story_id !== story.id));
       setViews((prev) => prev.filter((item) => item.story_id !== story.id));
     }
   }, []);
-
-  const addReaction = useCallback(
-    async (storyId: string, reaction: string) => {
-      if (!userId) return;
-      const supabase = getSupabaseBrowserClient();
-      const result = await supabase
-        .from("story_reactions")
-        .insert({ story_id: storyId, user_id: userId, reaction })
-        .select("*")
-        .single();
-      if (!result.error && result.data) {
-        setReactions((prev) => {
-          if (prev.some((item) => item.id === result.data.id)) return prev;
-          return [...prev, result.data as StoryReaction];
-        });
-      }
-    },
-    [userId]
-  );
 
   const addComment = useCallback(
     async (storyId: string, body: string) => {
       if (!userId) return;
       const supabase = getSupabaseBrowserClient();
       const result = await supabase
-        .from("story_replies")
+        .from("story_comments")
         .insert({ story_id: storyId, user_id: userId, body })
         .select("*")
         .single();
@@ -260,9 +242,17 @@ export function useStories({
           if (prev.some((item) => item.id === result.data.id)) return prev;
           return [...prev, result.data as StoryComment];
         });
+        await supabase.from("chat_messages").insert({
+          room_id: ROOM_ID,
+          sender_id: userId,
+          sender_username: username ?? "Partner",
+          body,
+          type: "text",
+          reply_to: null,
+        });
       }
     },
-    [userId]
+    [userId, username]
   );
 
   const markSeen = useCallback(
@@ -289,13 +279,11 @@ export function useStories({
 
   return {
     stories,
-    reactions,
     comments,
     views,
     isLoading,
     createStory,
     deleteStory,
-    addReaction,
     addComment,
     markSeen,
   };
