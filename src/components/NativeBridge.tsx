@@ -13,8 +13,8 @@ import { StatusBar, Style } from "@capacitor/status-bar";
 import { useAuth } from "@/components/AuthProvider";
 import { saveNativePushToken } from "@/lib/pwa/push";
 
-const PUSH_PERMISSION_KEY = "mint:native-push-permission-requested";
-const LOCAL_PERMISSION_KEY = "mint:native-local-permission-requested";
+const PUSH_PERMISSION_KEY = "lasi:native-push-permission-requested";
+const LOCAL_PERMISSION_KEY = "lasi:native-local-permission-requested";
 
 function hasRequestedPermission(key: string) {
   if (typeof window === "undefined") return false;
@@ -55,8 +55,8 @@ async function registerNativePush(userId: string | null) {
 
   try {
     await LocalNotifications.createChannel({
-      id: "mint-chat",
-      name: "MINT Messages",
+      id: "lasi-chat",
+      name: "LASI Messages",
       description: "Chat message notifications",
       importance: 5,
       visibility: 1,
@@ -87,9 +87,9 @@ async function registerNativePush(userId: string | null) {
           notifications: [
             {
               id: Date.now() % 2147483647,
-              title: notification.title ?? "MINT",
+              title: notification.title ?? "LASI",
               body: notification.body ?? "New message",
-              channelId: "mint-chat",
+              channelId: "lasi-chat",
               extra: notification.data ?? {},
               schedule: { at: new Date(Date.now() + 100) },
             },

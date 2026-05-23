@@ -22,7 +22,7 @@ export default function SplashScreen() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(180,120,255,0.25),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(255,90,160,0.2),_transparent_60%),#070910]"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-[radial-gradient(circle_at_top,rgba(180,120,255,0.25),transparent_55%),radial-gradient(circle_at_bottom,rgba(255,90,160,0.2),transparent_60%),#070910]"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -35,7 +35,7 @@ export default function SplashScreen() {
             </div>
             <div className="text-center">
               <p className="text-sm uppercase tracking-[0.4em] text-white/60">
-                Lumen Duo
+                LASI
               </p>
               <p className="text-lg font-semibold text-white">Private, by design</p>
             </div>

@@ -1,27 +1,57 @@
 {
-  "name": "Lumen Duo",
-  "short_name": "Lumen",
+  "name": "LASI",
+  "short_name": "LASI",
   "description": "Private couple space with neon romance and offline-ready moments.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "id": "/",
-  "background_color": "#0b0c14",
-  "theme_color": "#0b0c14",
+  "background_color": "#080c1a",
+  "theme_color": "#080c1a",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "/icons/icon-48.webp",
+      "sizes": "48x48",
+      "type": "image/webp",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/maskable.svg",
+      "src": "/icons/icon-72.webp",
+      "sizes": "72x72",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-96.webp",
+      "sizes": "96x96",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-128.webp",
+      "sizes": "128x128",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-256.webp",
+      "sizes": "256x256",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.webp",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "type": "image/webp",
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -29,13 +59,13 @@
       "name": "Chat",
       "short_name": "Chat",
       "url": "/chat",
-      "icons": [{ "src": "/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192", "type": "image/webp" }]
     },
     {
       "name": "Stories",
       "short_name": "Stories",
       "url": "/stories",
-      "icons": [{ "src": "/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icons/icon-512.webp", "sizes": "512x512", "type": "image/webp" }]
     }
   ]
 }

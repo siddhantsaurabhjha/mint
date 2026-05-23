@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-    const vapidSubject = process.env.VAPID_SUBJECT || "mailto:hello@lumenduo.local";
+    const vapidSubject = process.env.VAPID_SUBJECT || "mailto:hello@lasi.local";
 
     if (!vapidPublicKey || !vapidPrivateKey) {
       return NextResponse.json({ error: "Missing VAPID keys." }, { status: 500 });
@@ -57,10 +57,10 @@ export async function POST(request: Request) {
     }
 
     const payload = JSON.stringify({
-      title: title ?? "MINT",
+      title: title ?? "LASI",
       body: body ?? "New message",
       url: url ?? "/",
-      tag: tag ?? "mint-chat-message",
+      tag: tag ?? "lasi-chat-message",
       badge: badge ?? 1,
     });
 
@@ -109,12 +109,12 @@ export async function POST(request: Request) {
       await messaging.sendEachForMulticast({
         tokens: fcmTokens,
         notification: {
-          title: title ?? "MINT",
+          title: title ?? "LASI",
           body: body ?? "New message",
         },
         data: {
           url: url ?? "/chat",
-          tag: tag ?? "mint-chat-message",
+          tag: tag ?? "lasi-chat-message",
           badge: String(badge ?? 1),
         },
         android: {

@@ -32,7 +32,7 @@ export default function BottomNav() {
                 >
                   {isActive ? (
                     <motion.span
-                      layoutId="mint-nav-pill"
+                      layoutId="lasi-nav-pill"
                       className="absolute inset-x-4 -top-1 h-11 rounded-2xl bg-white/10"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />

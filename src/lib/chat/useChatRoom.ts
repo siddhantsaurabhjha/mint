@@ -315,9 +315,9 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           ) {
             const senderName = toNotificationName(next.sender_username);
             const preview = next.body?.trim() || (next.type === "image" ? "Sent a photo" : next.type === "voice" ? "Sent a voice message" : "New message");
-            const notification = new Notification("MINT", {
+            const notification = new Notification("LASI", {
               body: `${senderName}: ${preview}`,
-              tag: `mint-chat-${next.id}`,
+              tag: `lasi-chat-${next.id}`,
             });
             notification.onclick = () => {
               window.focus();
@@ -626,10 +626,10 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
         const preview = body?.trim() || (type === "image" ? "Sent a photo" : type === "voice" ? "Sent a voice message" : "New message");
         const senderName = toNotificationName(username);
         void sendPushNotification({
-          title: "MINT",
+          title: "LASI",
           body: `${senderName}: ${preview}`,
           url: "/chat",
-          tag: `mint-chat-${data.id}`,
+          tag: `lasi-chat-${data.id}`,
           senderId: userId,
           recipientId: partnerUserId,
           badge: 1,

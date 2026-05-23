@@ -1,4 +1,4 @@
-package com.mint.app;
+package com.lasi.app;
 
 import com.getcapacitor.BridgeActivity;
 

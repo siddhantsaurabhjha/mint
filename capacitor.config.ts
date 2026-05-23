@@ -3,8 +3,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const serverUrl = process.env.CAPACITOR_SERVER_URL?.trim();
 
 const config: CapacitorConfig = {
-  appId: "com.mint.app",
-  appName: "MINT",
+  appId: "com.lasi.app",
+  appName: "LASI",
   webDir: "public",
   bundledWebRuntime: false,
   server: serverUrl

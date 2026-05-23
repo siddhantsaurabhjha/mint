@@ -1,4 +1,4 @@
-# MINT / Lumen Duo
+# LASI
 
 Premium private couple app with neon romantic styling, mobile-first layout, PWA support, and Android APK support via Capacitor.
 

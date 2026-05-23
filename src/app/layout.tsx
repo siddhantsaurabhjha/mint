@@ -20,19 +20,19 @@ const displayFont = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "MINT",
-    template: "%s | MINT",
+    default: "LASI",
+    template: "%s | LASI",
   },
   description: "Private couple space with neon romance and offline-ready moments.",
-  applicationName: "MINT",
+  applicationName: "LASI",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icons/icon.svg",
-    apple: "/icons/icon.svg",
+    icon: "/icons/icon.png",
+    apple: "/icons/icon.png",
   },
   appleWebApp: {
     capable: true,
-    title: "MINT",
+    title: "LASI",
     statusBarStyle: "black-translucent",
   },
 };

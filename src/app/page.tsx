@@ -186,7 +186,7 @@ export default function Home() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-[0.35em] text-white/55">MINT</p>
+            <p className="text-[11px] uppercase tracking-[0.35em] text-white/55">LASI</p>
             <h1 className="mt-1 truncate text-lg font-semibold text-white">
               {currentDisplayName || ""}
             </h1>

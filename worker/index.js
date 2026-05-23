@@ -2,7 +2,7 @@
 self.__WB_DISABLE_DEV_LOGS = true;
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "Lumen Duo", body: "New update", url: "/" };
+  let payload = { title: "LASI", body: "New update", url: "/" };
   if (event.data) {
     try {
       payload = { ...payload, ...event.data.json() };
@@ -14,9 +14,9 @@ self.addEventListener("push", (event) => {
   const options = {
     body: payload.body,
     data: { url: payload.url || "/" },
-    badge: "/icons/icon.svg",
-    icon: "/icons/icon.svg",
-    tag: payload.tag || "lumen-duo",
+    badge: "/icons/icon.png",
+    icon: "/icons/icon.png",
+    tag: payload.tag || "lasi-chat",
     renotify: true,
   };
 

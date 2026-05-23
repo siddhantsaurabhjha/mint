@@ -5,7 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/components/AuthProvider";
 import { clearAppBadge, ensurePushSubscription } from "@/lib/pwa/push";
 
-const NOTIFICATION_PERMISSION_KEY = "lumen:notification-permission";
+const NOTIFICATION_PERMISSION_KEY = "lasi:notification-permission";
 
 const readStoredPermission = () => {
   if (typeof window === "undefined") return null;
@@ -93,7 +93,7 @@ export default function PwaManager() {
       <div className="mx-auto flex max-w-md flex-col gap-2 rounded-3xl border border-white/10 bg-white/10 px-4 py-3 text-white backdrop-blur-2xl">
         {showInstall ? (
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span>Install MINT</span>
+            <span>Install LASI</span>
             <button
               type="button"
               onClick={handleInstall}
