@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("push_subscriptions")
       .select("endpoint, p256dh, auth, user_id");

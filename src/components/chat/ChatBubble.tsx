@@ -104,7 +104,6 @@ export default function ChatBubble({
           message={message}
           onOpen={onOpenMedia}
           timeLabel={formatTime(message.created_at)}
-          statusLabel={tick?.label ?? null}
           statusTone={tick?.tone}
           statusIcon={tick?.icon ?? null}
           isOwn={isOwn}
@@ -119,7 +118,6 @@ export default function ChatBubble({
         <ChatVoiceBubble
           message={message}
           timeLabel={formatTime(message.created_at)}
-          statusLabel={tickState()?.label ?? null}
           statusTone={tickState()?.tone}
           statusIcon={tickState()?.icon ?? null}
           isOwn={isOwn}

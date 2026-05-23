@@ -65,7 +65,7 @@ export function useCountdowns({ userId }: { userId?: string | null }) {
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: "countdown_events" },
-      (payload) => {
+      (payload: any) => {
         console.info("[countdowns] realtime event", payload.eventType, payload);
 
         const next = payload.new as CountdownEvent | null;
@@ -90,7 +90,7 @@ export function useCountdowns({ userId }: { userId?: string | null }) {
       }
     );
 
-    void channel.subscribe((status) => {
+    void channel.subscribe((status: string) => {
       console.info("[countdowns] realtime status", status);
     });
 

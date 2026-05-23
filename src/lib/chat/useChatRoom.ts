@@ -229,18 +229,18 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
   useEffect(() => {
     if (!userId || !allowed || partnerUserId) return;
     const supabase = getSupabaseBrowserClient();
+    void (async () => {
+      const result = await supabase
+        .from("profiles")
+        .select("user_id")
+        .neq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
 
-    supabase
-      .from("profiles")
-      .select("user_id")
-      .neq("user_id", userId)
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.user_id) {
-          setPartnerUserId(data.user_id as string);
-        }
-      });
+      if (result.data?.user_id) {
+        setPartnerUserId(result.data.user_id as string);
+      }
+    })();
   }, [allowed, partnerUserId, userId]);
 
   useEffect(() => {
@@ -259,38 +259,39 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
     if (!userId || !allowed) return undefined;
     const supabase = getSupabaseBrowserClient();
     let isMounted = true;
-    let roomChannel: RealtimeChannel | null = null;
     let receiptsChannel: RealtimeChannel | null = null;
 
-    supabase
-      .from("chat_messages")
-      .select("*")
-      .eq("room_id", ROOM_ID)
-      .order("created_at", { ascending: true })
-      .limit(MESSAGE_LIMIT)
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (!error && data) {
-          const nextMessages = data as ChatMessage[];
-          upsertMessages(nextMessages);
-          resolveAndSetPartnerUserId(nextMessages);
-          void upsertReceiptsForIncoming(nextMessages);
-        }
+    void (async () => {
+      const messagesResult = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("room_id", ROOM_ID)
+        .order("created_at", { ascending: true })
+        .limit(MESSAGE_LIMIT);
+
+      if (isMounted && !messagesResult.error && messagesResult.data) {
+        const nextMessages = messagesResult.data as ChatMessage[];
+        upsertMessages(nextMessages);
+        resolveAndSetPartnerUserId(nextMessages);
+        void upsertReceiptsForIncoming(nextMessages);
+      }
+      if (isMounted) {
         setIsLoading(false);
-      });
+      }
+    })();
 
-    supabase
-      .from("chat_receipts")
-      .select("*")
-      .order("created_at", { ascending: true })
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (!error && data) {
-          applyReceiptsToMessages(data as ChatReceipt[]);
-        }
-      });
+    void (async () => {
+      const receiptsResult = await supabase
+        .from("chat_receipts")
+        .select("*")
+        .order("created_at", { ascending: true });
 
-    roomChannel = supabase.channel(`room:${ROOM_ID}`);
+      if (isMounted && !receiptsResult.error && receiptsResult.data) {
+        applyReceiptsToMessages(receiptsResult.data as ChatReceipt[]);
+      }
+    })();
+
+    const roomChannel = supabase.channel(`room:${ROOM_ID}`);
 
     roomChannel
       .on(
@@ -301,7 +302,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           table: "chat_messages",
           filter: `room_id=eq.${ROOM_ID}`,
         },
-        (payload) => {
+        (payload: any) => {
           const next = payload.new as ChatMessage;
           upsertMessages([next]);
           resolveAndSetPartnerUserId([next]);
@@ -334,7 +335,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           table: "chat_messages",
           filter: `room_id=eq.${ROOM_ID}`,
         },
-        (payload) => {
+        (payload: any) => {
           const next = payload.new as ChatMessage;
           upsertMessages([next]);
         }
@@ -347,12 +348,12 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           table: "chat_messages",
           filter: `room_id=eq.${ROOM_ID}`,
         },
-        (payload) => {
+        (payload: any) => {
           const removed = payload.old as ChatMessage;
           removeMessage(removed.id);
         }
       )
-      .on("broadcast", { event: TYPING_EVENT }, ({ payload }) => {
+      .on("broadcast", { event: TYPING_EVENT }, ({ payload }: { payload: any }) => {
         const { user_id: typingUserId, username: typingName, is_typing } = payload as {
           user_id: string;
           username: string;
@@ -383,7 +384,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           });
         }, 2500);
       })
-      .on("broadcast", { event: PROFILE_EVENT }, ({ payload }) => {
+      .on("broadcast", { event: PROFILE_EVENT }, ({ payload }: { payload: any }) => {
         const nextPayload = payload as {
           user_id: string;
           displayName?: string;
@@ -403,18 +404,18 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           updatedAt: nextPayload.updatedAt ?? new Date().toISOString(),
         });
       })
-      .on("broadcast", { event: PROFILE_SYNC_REQUEST_EVENT }, ({ payload }) => {
+      .on("broadcast", { event: PROFILE_SYNC_REQUEST_EVENT }, ({ payload }: { payload: any }) => {
         const nextPayload = payload as { requester_user_id?: string; target_user_id?: string };
         if (!nextPayload.requester_user_id || nextPayload.requester_user_id === userId) return;
         if (nextPayload.target_user_id !== userId) return;
         broadcastProfileSnapshot();
       });
 
-    roomChannel.subscribe((status) => {
+    roomChannel.subscribe((status: string) => {
       if (status !== "SUBSCRIBED") return;
       broadcastProfileSnapshot();
       if (!userId) return;
-      roomChannel?.send({
+      roomChannel.send({
         type: "broadcast",
         event: PROFILE_SYNC_REQUEST_EVENT,
         payload: {
@@ -432,7 +433,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           schema: "public",
           table: "chat_receipts",
         },
-        (payload) => {
+        (payload: any) => {
           if (payload.eventType === "DELETE") return;
           const next = payload.new as ChatReceipt;
           applyReceiptsToMessages([next]);
@@ -515,20 +516,21 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
       }
     };
 
-    supabase
-      .from("user_presence")
-      .select("user_id, username, is_online, last_seen")
-      .then(({ data }) => {
-        if (!data) return;
-        data.forEach((item) => applyPresenceState(item as PresenceState));
-      });
+    void (async () => {
+      const presenceResult = await supabase
+        .from("user_presence")
+        .select("user_id, username, is_online, last_seen");
+
+      if (!presenceResult.data) return;
+      presenceResult.data.forEach((item: PresenceState) => applyPresenceState(item));
+    })();
 
     const presenceChannel = supabase.channel(`presence-db:${ROOM_ID}`);
     presenceChannel
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "user_presence" },
-        (payload) => {
+        (payload: any) => {
           const next = payload.new as PresenceState;
           applyPresenceState(next);
         }

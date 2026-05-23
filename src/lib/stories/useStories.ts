@@ -94,7 +94,7 @@ export function useStories({
     if (!data || data.length === 0) return;
 
     await Promise.all(
-      data.map(async (item) => {
+      data.map(async (item: { media_url: string | null; type: StoryItem["type"] }) => {
         if (!item.media_url) return;
         const publicId = extractCloudinaryPublicId(item.media_url);
         if (!publicId) return;
@@ -119,7 +119,7 @@ export function useStories({
 
       const staleChannel = supabase
         .getChannels()
-        .find((item) => item.topic === "realtime:stories");
+        .find((item: RealtimeChannel) => item.topic === "realtime:stories");
 
       if (staleChannel) {
         await supabase.removeChannel(staleChannel);

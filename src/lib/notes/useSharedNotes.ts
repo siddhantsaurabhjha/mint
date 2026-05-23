@@ -41,7 +41,7 @@ export function useSharedNotes(userId: string | null, username: string | null) {
       .order("created_at", { ascending: false });
 
     if (data) {
-      setNotes(data.map((item) => normalizeNote(item as Record<string, unknown>)));
+      setNotes(data.map((item: Record<string, unknown>) => normalizeNote(item)));
     }
     setIsLoading(false);
   }, [supabase]);
