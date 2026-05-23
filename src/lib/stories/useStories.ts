@@ -196,14 +196,7 @@ export function useStories({
 
       if (!result.error && result.data) {
         setStories((prev) => [result.data as StoryItem, ...prev]);
-        await sendPushNotification({
-          title: "New story",
-          body: `${username ?? "Someone"} shared a story`,
-          url: "/stories",
-          tag: "story",
-          senderId: userId,
-          badge: 1,
-        });
+          // Removed non-chat push notification
       }
 
       return result;

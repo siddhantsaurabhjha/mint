@@ -33,14 +33,14 @@ export async function POST(request: Request) {
     }
 
     const payload = JSON.stringify({
-      title: title ?? "Lumen Duo",
-      body: body ?? "New update",
+      title: title ?? "MINT",
+      body: body ?? "New message",
       url: url ?? "/",
-      tag: tag ?? "lumen-duo",
+      tag: tag ?? "mint-chat-message",
       badge: badge ?? 1,
     });
 
-    await Promise.all(
+    const results = await Promise.allSettled(
       data
         .filter((item) => (senderId ? item.user_id !== senderId : true))
         .map((item) =>
@@ -53,6 +53,20 @@ export async function POST(request: Request) {
           )
         )
     );
+
+    const staleEndpoints: string[] = [];
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        const reason = result.reason as { statusCode?: number } | undefined;
+        if (reason?.statusCode === 404 || reason?.statusCode === 410) {
+          staleEndpoints.push(data[index].endpoint);
+        }
+      }
+    });
+
+    if (staleEndpoints.length > 0) {
+      await supabase.from("push_subscriptions").delete().in("endpoint", staleEndpoints);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

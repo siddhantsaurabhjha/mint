@@ -23,7 +23,10 @@ export async function ensurePushSubscription(userId: string | null) {
   if (typeof window === "undefined") return null;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
 
-  const permission = await Notification.requestPermission();
+  let permission = Notification.permission;
+  if (permission === "default") {
+    permission = await Notification.requestPermission();
+  }
   if (permission !== "granted") return null;
 
   const registration = await navigator.serviceWorker.ready;

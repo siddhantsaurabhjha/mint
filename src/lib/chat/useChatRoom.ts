@@ -42,6 +42,14 @@ type ProfileSnapshot = {
   updatedAt: string;
 };
 
+function toNotificationName(raw: string | null | undefined) {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (!value) return "Partner";
+  if (value === "sid") return "Sid";
+  if (value === "laxu") return "Laxmi";
+  return value[0].toUpperCase() + value.slice(1);
+}
+
 export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +61,7 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushedMessageIdsRef = useRef<Set<string>>(new Set());
   const username = email ? resolveUsernameFromEmail(email) : null;
   const allowed = isAllowedEmail(email);
 
@@ -190,6 +199,19 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
           const next = payload.new as ChatMessage;
           upsertMessages([next]);
           markDeliveredAndSeen([next]);
+
+          if (next.sender_id === userId && !pushedMessageIdsRef.current.has(next.id)) {
+            pushedMessageIdsRef.current.add(next.id);
+            const senderName = toNotificationName(next.sender_username);
+            void sendPushNotification({
+              title: "MINT",
+              body: `${senderName} sent a message`,
+              url: "/chat",
+              tag: `mint-chat-${next.id}`,
+              senderId: userId,
+              badge: 1,
+            });
+          }
         }
       )
       .on(
@@ -442,14 +464,6 @@ export function useChatRoom({ userId, email, profileSnapshot }: UseChatRoomOptio
 
       if (!error && data) {
         upsertMessages([data as ChatMessage]);
-        await sendPushNotification({
-          title: "New message",
-          body: body || "Sent a media message",
-          url: "/chat",
-          tag: "chat-message",
-          senderId: userId,
-          badge: 1,
-        });
       }
 
       return { data, error };
