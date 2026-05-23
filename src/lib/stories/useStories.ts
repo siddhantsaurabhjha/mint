@@ -55,7 +55,7 @@ export function useStories({
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
 
-  const loadStories = useCallback(async () => {
+  const fetchStories = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();
     const { data } = await supabase
       .from("stories")
@@ -128,53 +128,39 @@ export function useStories({
   }, []);
 
   useEffect(() => {
-    loadStories();
-    loadReactions();
-    loadComments();
-    loadViews();
-    cleanupExpiredStories();
     const supabase = getSupabaseBrowserClient();
+    void (async () => {
+      await fetchStories();
+      await loadReactions();
+      await loadComments();
+      await loadViews();
+      await cleanupExpiredStories();
+    })();
+
     const channel = supabase
       .channel("stories")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "stories" },
+        {
+          event: "*",
+          schema: "public",
+          table: "stories",
+        },
         () => {
-          loadStories();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "story_reactions" },
-        () => {
-          loadReactions();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "story_replies" },
-        () => {
-          loadComments();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "story_views" },
-        () => {
-          loadViews();
+          fetchStories();
         }
       )
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [
-    loadStories,
     loadReactions,
     loadComments,
     loadViews,
     cleanupExpiredStories,
+    fetchStories,
   ]);
 
   const createStory = useCallback(

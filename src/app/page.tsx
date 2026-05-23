@@ -12,28 +12,63 @@ import { formatDateLabel, formatTime } from "@/lib/chat/utils";
 import { resolveUsernameFromEmail } from "@/lib/auth";
 import { useCountdowns } from "@/lib/countdowns/useCountdowns";
 import CountdownCard from "@/components/Countdowns/CountdownCard";
+import { useStories } from "@/lib/stories/useStories";
+
+const titleCase = (value: string) =>
+  value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 
 const displayNameFromUsername = (username: string | null) => {
-  if (!username) return "Partner";
+  if (!username) return "";
   if (username.toLowerCase() === "sid") return "Sid";
   if (username.toLowerCase() === "laxu") return "Laxmi";
-  return username.charAt(0).toUpperCase() + username.slice(1);
+  return titleCase(username.replace(/[._-]/g, " "));
+};
+
+const displayNameFromMetadata = (
+  email: string | null,
+  metadata: Record<string, unknown>
+) => {
+  const explicitName =
+    (typeof metadata.full_name === "string" && metadata.full_name.trim()) ||
+    (typeof metadata.name === "string" && metadata.name.trim()) ||
+    (typeof metadata.display_name === "string" && metadata.display_name.trim()) ||
+    null;
+  if (explicitName) return explicitName;
+
+  const username = email ? resolveUsernameFromEmail(email) : null;
+  return username ? displayNameFromUsername(username) : "";
 };
 
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const email = user?.email ?? null;
+  const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const username = email ? resolveUsernameFromEmail(email) : null;
-  const displayName = displayNameFromUsername(username);
-  const partnerUsername = username === "sid" ? "laxu" : username === "laxu" ? "sid" : "partner";
-  const partnerName = partnerUsername === "sid" ? "Sid" : partnerUsername === "laxu" ? "Laxmi" : "Partner";
+  const displayName = displayNameFromMetadata(email, metadata);
+  const partnerUsername = username === "sid" ? "laxu" : username === "laxu" ? "sid" : null;
+  const partnerName = displayNameFromUsername(partnerUsername);
   const initials = displayName
     .split(" ")
     .filter(Boolean)
     .map((part) => part[0]?.toUpperCase())
     .slice(0, 2)
     .join("");
+  const profileAvatarUrl =
+    (typeof metadata.profile_avatar_url === "string" && metadata.profile_avatar_url) ||
+    (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+    null;
+  const profileMood =
+    (typeof metadata.mood === "string" && metadata.mood.trim()) || "No mood set";
+
+  const { stories } = useStories({
+    userId: user?.id ?? null,
+    username,
+  });
 
   const { messages, onlineUsers, lastSeen } = useChatRoom({
     userId: user?.id ?? "",
@@ -45,18 +80,27 @@ export default function Home() {
     () => messages.filter((item) => item.sender_id !== user?.id && !item.seen_at).length,
     [messages, user?.id]
   );
-  const latestPreview = latestMessage
-    ? latestMessage.type === "image"
-      ? "Sent a photo"
-      : latestMessage.type === "voice"
-      ? "Sent a voice note"
-      : latestMessage.body || "Sent a message"
-    : "No messages yet";
   const latestTimestamp = latestMessage
     ? formatDateLabel(latestMessage.created_at) === "Today"
       ? formatTime(latestMessage.created_at)
       : formatDateLabel(latestMessage.created_at)
     : "";
+  const latestPartnerStory = useMemo(
+    () =>
+      stories.find(
+        (story) => story.user_id !== user?.id && Boolean(story.media_url)
+      ) ?? null,
+    [stories, user?.id]
+  );
+  const partnerStoryImage = latestPartnerStory?.media_url ?? null;
+  const partnerStoryLabel = latestPartnerStory?.caption?.trim() || "No story uploaded yet";
+  const chatPreview = latestMessage
+    ? latestMessage.type === "image"
+      ? "Sent a photo"
+      : latestMessage.type === "voice"
+      ? "Sent a voice note"
+      : latestMessage.body || "Sent a message"
+    : partnerStoryLabel;
 
   const partnerOnline = onlineUsers.some((item) => item.user_id !== user?.id);
   const partnerId = user?.id ? Object.keys(lastSeen).find((id) => id !== user.id) ?? null : null;
@@ -110,36 +154,37 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-7">
-      <GlassCard className="rounded-[26px] bg-(--panel-solid) px-5 py-4">
-        <div className="flex items-center gap-4">
-          <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-white/10">
-            {user?.user_metadata?.avatar_url ? (
+      <GlassCard className="rounded-[28px] bg-(--panel-solid) px-5 py-4">
+        <div className="flex items-start gap-4">
+          <div className="relative h-16 w-16 overflow-hidden rounded-[22px] border border-fuchsia-300/20 bg-white/8 shadow-[0_0_22px_rgba(179,71,255,0.18)]">
+            {profileAvatarUrl ? (
               <img
-                src={user.user_metadata.avatar_url}
+                src={profileAvatarUrl}
                 alt={displayName}
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/90">
                 {initials || "ME"}
               </div>
             )}
+            <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border border-(--panel-solid) bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.5)]" />
           </div>
-          <div className="flex-1">
-            <p className="text-[11px] uppercase tracking-[0.35em] text-white/55">
-              MINT
-            </p>
-            <h1 className="mt-1 text-lg font-semibold text-white">
-              Welcome back {displayName}
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] uppercase tracking-[0.35em] text-white/55">MINT</p>
+            <h1 className="mt-1 truncate text-lg font-semibold text-white">
+              {displayName || ""}
             </h1>
-            <p className="text-xs text-white/60">Your private couple hub</p>
+            <p className="mt-1 text-xs text-white/60">Your private couple hub</p>
           </div>
+
           <div className="flex flex-col items-end gap-2">
-            <span className="rounded-full border border-emerald-200/20 bg-emerald-200/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-emerald-100">
-              {partnerOnline ? "Together" : "Away"}
+            <span className="max-w-28 truncate rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70">
+              {profileMood}
             </span>
-            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/60">
-              Mood: Minted
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/55">
+              {partnerOnline ? "Live sync" : "Syncing"}
             </span>
           </div>
         </div>
@@ -152,11 +197,37 @@ export default function Home() {
             Live
           </span>
         </div>
+        <Link href="/stories" className="block">
+          <GlassCard className="rounded-[28px] px-4 py-4">
+            <div className="flex items-center gap-4">
+              <div className={`relative h-16 w-16 overflow-hidden rounded-[22px] border ${partnerStoryImage ? "border-accent shadow-[0_0_18px_rgba(179,71,255,0.45)]" : "border-white/10 bg-white/5"}`}>
+                {partnerStoryImage ? (
+                  <img
+                    src={partnerStoryImage}
+                    alt={partnerName || "Partner story"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : null}
+                <div className="absolute inset-0 rounded-[22px] bg-linear-to-t from-black/30 to-transparent" />
+                <div className="absolute inset-0.5 rounded-[20px] border border-white/10" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">
+                  {partnerName || "Stories"}
+                </p>
+                <p className="mt-1 truncate text-xs text-white/65">{partnerStoryLabel}</p>
+              </div>
+
+              <ChevronRight size={18} className="shrink-0 text-white/50" />
+            </div>
+          </GlassCard>
+        </Link>
         <StoriesRail
           showEmptyState
           showAdd
           addLabel="Your Story"
-          orderByUsernames={[partnerUsername]}
+          orderByUsernames={partnerUsername ? [partnerUsername] : undefined}
           onCreate={() => router.push("/stories")}
         />
       </section>
@@ -169,27 +240,35 @@ export default function Home() {
           </span>
         </div>
         <Link href="/chat" className="block">
-          <GlassCard className="rounded-[26px] px-5 py-4">
+          <GlassCard className="rounded-[28px] px-5 py-4">
             <div className="flex items-center gap-4">
-              <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-white/10">
-                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
-                  {partnerName.slice(0, 2).toUpperCase()}
-                </div>
+              <div className={`relative h-16 w-16 overflow-hidden rounded-[22px] border ${partnerStoryImage ? "border-accent shadow-[0_0_18px_rgba(179,71,255,0.45)]" : "border-white/10 bg-white/5"}`}>
+                {partnerStoryImage ? (
+                  <img
+                    src={partnerStoryImage}
+                    alt={partnerName || "Partner"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : null}
+                <div className="absolute inset-0 rounded-[22px] bg-linear-to-t from-black/35 to-transparent" />
+                <div className="absolute inset-0.5 rounded-[20px] border border-white/10" />
                 <span
                   className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border border-(--panel-solid) ${
                     partnerOnline ? "bg-emerald-400" : "bg-white/30"
                   }`}
                 />
               </div>
+
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-semibold text-white">
-                    {partnerName}
+                    {partnerName || "Chat"}
                   </p>
                   <p className="text-[11px] text-white/55">{latestTimestamp}</p>
                 </div>
-                <p className="truncate text-xs text-white/65">{latestPreview}</p>
+                <p className="truncate text-xs text-white/65">{chatPreview}</p>
               </div>
+
               <div className="flex flex-col items-end gap-2">
                 {unreadCount > 0 ? (
                   <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-black">
@@ -197,7 +276,7 @@ export default function Home() {
                   </span>
                 ) : (
                   <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-white/50">
-                    {partnerOnline ? "Live" : ""}
+                    Open
                   </span>
                 )}
                 <ChevronRight size={18} className="text-white/50" />

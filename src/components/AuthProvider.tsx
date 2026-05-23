@@ -1,6 +1,6 @@
 "use client";
 
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { resolveEmail } from "@/lib/auth";
@@ -26,14 +26,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseBrowserClient();
 
     let isMounted = true;
-    supabase.auth.getSession().then(({ data } : any) => {
+    supabase.auth.getSession().then((result: { data: { session: Session | null } }) => {
+      const { data } = result;
       if (!isMounted) return;
       setSession(data.session ?? null);
       setUser(data.session?.user ?? null);
       setStatus(data.session ? "authenticated" : "unauthenticated");
     });
 
-    supabase.auth.getUser().then(({ data } : any) => {
+    supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
+      const { data } = result;
       if (!isMounted) return;
       setUser(data.user ?? null);
       if (data.user) {
@@ -41,17 +43,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, nextSession: Session | null) => {
         setSession(nextSession ?? null);
-        setUser(nextSession?.user ?? null);
-        setStatus(nextSession ? "authenticated" : "unauthenticated");
+        void supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
+          const { data } = result;
+          if (!isMounted) return;
+          setUser(data.user ?? nextSession?.user ?? null);
+          setStatus(data.user || nextSession ? "authenticated" : "unauthenticated");
+        });
       }
     );
 
     return () => {
       isMounted = false;
-      subscription.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
