@@ -197,9 +197,11 @@ export default function ChatBubble({
           </div>
         ) : null}
         {reply ? (
-          <div className="mb-1.5 rounded-xl border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-white/72">
-            <span className="font-semibold">{reply.sender_username}</span> •{" "}
-            {reply.body ?? reply.type}
+          <div className="mb-1 rounded-2xl border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] leading-tight text-white/72">
+            <div className="truncate">
+              <span className="font-semibold">{reply.sender_username}</span> •{" "}
+              <span className="truncate">{reply.body ?? reply.type}</span>
+            </div>
           </div>
         ) : null}
         {renderMedia()}

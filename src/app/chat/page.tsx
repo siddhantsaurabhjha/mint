@@ -265,7 +265,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="relative flex min-h-dvh w-full flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(16,9,28,1),rgba(8,6,16,1))]">
+    <div className="relative flex h-screen w-full flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(16,9,28,1),rgba(8,6,16,1))]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(118,61,255,0.16),transparent_42%),radial-gradient(circle_at_18%_20%,rgba(63,132,255,0.12),transparent_28%),radial-gradient(circle_at_80%_92%,rgba(159,68,255,0.08),transparent_30%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent)] opacity-50" />
 
@@ -297,7 +297,7 @@ export default function ChatPage() {
           setShowEmojiPicker(false);
         }}
       >
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 scroll-smooth overscroll-contain pb-[calc(88px+env(safe-area-inset-bottom))]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-2 pb-32 scroll-smooth overscroll-contain">
           {isLoading && messages.length === 0 ? (
             <ChatSkeleton />
           ) : messages.length === 0 ? (
