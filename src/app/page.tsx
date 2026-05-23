@@ -103,8 +103,6 @@ export default function Home() {
       ) ?? null,
     [stories, user?.id]
   );
-  const partnerStoryImage = latestPartnerStory?.media_url ?? null;
-  const partnerStoryLabel = latestPartnerStory?.caption?.trim() || null;
   const partnerOnline = onlineUsers.some((item) => item.user_id !== user?.id);
   const partnerId = useMemo(() => {
     if (!user?.id) return null;
@@ -228,34 +226,6 @@ export default function Home() {
             Live
           </span>
         </div>
-        <Link href="/stories" className="block">
-          <GlassCard className="rounded-[28px] px-4 py-4">
-            <div className="flex items-center gap-4">
-              <div className={`relative h-16 w-16 overflow-hidden rounded-[22px] border ${partnerStoryImage ? "border-accent shadow-[0_0_18px_rgba(179,71,255,0.45)]" : "border-white/10 bg-white/5"}`}>
-                {partnerStoryImage ? (
-                  <img
-                    src={partnerStoryImage}
-                    alt={partnerName || "Partner story"}
-                    className="h-full w-full object-cover"
-                  />
-                ) : null}
-                <div className="absolute inset-0 rounded-[22px] bg-linear-to-t from-black/30 to-transparent" />
-                <div className="absolute inset-0.5 rounded-[20px] border border-white/10" />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">
-                  {partnerName || "Stories"}
-                </p>
-                {partnerStoryLabel ? (
-                  <p className="mt-1 truncate text-xs text-white/65">{partnerStoryLabel}</p>
-                ) : null}
-              </div>
-
-              <ChevronRight size={18} className="shrink-0 text-white/50" />
-            </div>
-          </GlassCard>
-        </Link>
         <StoriesRail
           showEmptyState={false}
           showAdd
