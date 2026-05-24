@@ -7,6 +7,8 @@ export default function SplashScreen() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
     const timeout = window.setTimeout(() => {
       setVisible(false);
     }, 1200);

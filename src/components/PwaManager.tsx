@@ -48,18 +48,30 @@ export default function PwaManager() {
   useEffect(() => {
     if (isNative) return;
     if (!user) return;
-    const permission = Notification.permission;
-    const storedPermission = readStoredPermission();
-    if (permission === "granted") {
-      writeStoredPermission("granted");
+
+    try {
+      console.info("[pwa] evaluating notification prompt state");
+      if (typeof Notification === "undefined") {
+        setShowNotify(false);
+        return;
+      }
+
+      const permission = Notification.permission;
+      const storedPermission = readStoredPermission();
+      if (permission === "granted") {
+        writeStoredPermission("granted");
+        setShowNotify(false);
+      } else if (permission === "denied") {
+        writeStoredPermission("denied");
+        setShowNotify(false);
+      } else {
+        setShowNotify(storedPermission !== "granted");
+      }
+      clearAppBadge();
+    } catch (error) {
+      console.warn("[pwa] notification state check failed", error);
       setShowNotify(false);
-    } else if (permission === "denied") {
-      writeStoredPermission("denied");
-      setShowNotify(false);
-    } else {
-      setShowNotify(storedPermission !== "granted");
     }
-    clearAppBadge();
   }, [isNative, user]);
 
   const handleInstall = async () => {
@@ -71,18 +83,29 @@ export default function PwaManager() {
 
   const handleEnableNotifications = async () => {
     if (isNative) return;
-    await ensurePushSubscription(user?.id ?? null);
-    if (Notification.permission === "granted") {
-      writeStoredPermission("granted");
+
+    try {
+      await ensurePushSubscription(user?.id ?? null);
+      if (typeof Notification === "undefined") {
+        setShowNotify(false);
+        return;
+      }
+
+      if (Notification.permission === "granted") {
+        writeStoredPermission("granted");
+        setShowNotify(false);
+        return;
+      }
+      if (Notification.permission === "denied") {
+        writeStoredPermission("denied");
+        setShowNotify(false);
+        return;
+      }
+      setShowNotify(true);
+    } catch (error) {
+      console.error("[pwa] enabling notifications failed", error);
       setShowNotify(false);
-      return;
     }
-    if (Notification.permission === "denied") {
-      writeStoredPermission("denied");
-      setShowNotify(false);
-      return;
-    }
-    setShowNotify(true);
   };
 
   if (!showInstall && !showNotify) return null;

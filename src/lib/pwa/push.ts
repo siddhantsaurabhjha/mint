@@ -23,65 +23,90 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export async function ensurePushSubscription(userId: string | null) {
-  if (typeof window === "undefined") return null;
-  if (Capacitor.isNativePlatform()) return null;
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  try {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return null;
+    if (Capacitor.isNativePlatform()) return null;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || typeof Notification === "undefined") {
+      return null;
+    }
 
-  let permission = Notification.permission;
-  if (permission === "default") {
-    permission = await Notification.requestPermission();
-  }
-  if (permission !== "granted") return null;
+    let permission = Notification.permission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== "granted") return null;
 
-  const registration = await navigator.serviceWorker.ready;
-  const existing = await registration.pushManager.getSubscription();
-  if (existing) {
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+      console.warn("[push] VAPID public key missing");
+      return null;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) {
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: existing, userId }),
+      });
+      return existing;
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+
     await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subscription: existing, userId }),
+      body: JSON.stringify({ subscription, userId }),
     });
-    return existing;
+
+    return subscription;
+  } catch (error) {
+    console.error("[push] web subscription failed", error);
+    return null;
   }
-
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!publicKey) return null;
-
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey),
-  });
-
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subscription, userId }),
-  });
-
-  return subscription;
 }
 
 export async function sendPushNotification(payload: PushPayload) {
   if (typeof window === "undefined") return;
-  await fetch("/api/push/notify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+
+  try {
+    await fetch("/api/push/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error("[push] notify request failed", error);
+  }
 }
 
 export async function saveNativePushToken(userId: string | null, fcmToken: string) {
   if (typeof window === "undefined" || !fcmToken) return;
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, fcmToken }),
-  });
+
+  try {
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, fcmToken }),
+    });
+  } catch (error) {
+    console.error("[push] native token save failed", error);
+  }
 }
 
 export function clearAppBadge() {
   if (typeof window === "undefined") return;
-  if ("clearAppBadge" in navigator) {
-    navigator.clearAppBadge().catch(() => null);
+
+  try {
+    if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => null);
+    }
+  } catch (error) {
+    console.warn("[push] clear app badge failed", error);
   }
 }

@@ -38,19 +38,28 @@ async function registerNativePush(userId: string | null) {
   if (!Capacitor.isNativePlatform()) return;
   if (!userId) return;
 
-  const pushPermissions = await PushNotifications.checkPermissions();
-  if (pushPermissions.receive !== "granted" && !hasRequestedPermission(PUSH_PERMISSION_KEY)) {
-    markRequestedPermission(PUSH_PERMISSION_KEY);
-    const result = await PushNotifications.requestPermissions();
-    if (result.receive !== "granted") return;
-  } else if (pushPermissions.receive !== "granted") {
+  try {
+    const pushPermissions = await PushNotifications.checkPermissions();
+    if (pushPermissions.receive !== "granted" && !hasRequestedPermission(PUSH_PERMISSION_KEY)) {
+      markRequestedPermission(PUSH_PERMISSION_KEY);
+      const result = await PushNotifications.requestPermissions();
+      if (result.receive !== "granted") return;
+    } else if (pushPermissions.receive !== "granted") {
+      return;
+    }
+  } catch (error) {
+    console.error("[push] permission check failed", error);
     return;
   }
 
-  const localPermissions = await LocalNotifications.checkPermissions();
-  if (localPermissions.display !== "granted" && !hasRequestedPermission(LOCAL_PERMISSION_KEY)) {
-    markRequestedPermission(LOCAL_PERMISSION_KEY);
-    await LocalNotifications.requestPermissions();
+  try {
+    const localPermissions = await LocalNotifications.checkPermissions();
+    if (localPermissions.display !== "granted" && !hasRequestedPermission(LOCAL_PERMISSION_KEY)) {
+      markRequestedPermission(LOCAL_PERMISSION_KEY);
+      await LocalNotifications.requestPermissions();
+    }
+  } catch (error) {
+    console.warn("[push] local notification permission check failed", error);
   }
 
   try {
@@ -65,62 +74,74 @@ async function registerNativePush(userId: string | null) {
     // The channel may already exist or the platform may ignore this call.
   }
 
-  const registrationListener = await PushNotifications.addListener(
-    "registration",
-    async (token: Token) => {
-      console.log("[push] FCM token", token.value);
-      await saveNativePushToken(userId, token.value);
-    }
-  );
-
-  const registrationErrorListener = await PushNotifications.addListener(
-    "registrationError",
-    (error) => {
-      console.error("[push] registration error", error);
-    }
-  );
-
-  const receivedListener = await PushNotifications.addListener(
-    "pushNotificationReceived",
-    async (notification: PushNotificationSchema) => {
-      try {
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              id: Date.now() % 2147483647,
-              title: notification.title ?? "LASI",
-              body: notification.body ?? "New message",
-              channelId: "lasi-chat",
-              extra: notification.data ?? {},
-              schedule: { at: new Date(Date.now() + 100) },
-            },
-          ],
-        });
-      } catch (error) {
-        console.error("[push] local notification error", error);
-      }
-    }
-  );
-
-  const actionListener = await PushNotifications.addListener(
-    "pushNotificationActionPerformed",
-    (action) => {
-      const target = typeof action.notification.data?.url === "string" ? action.notification.data.url : "/chat";
-      window.location.assign(target);
-    }
-  );
+  let registrationListener: { remove: () => Promise<void> } | null = null;
+  let registrationErrorListener: { remove: () => Promise<void> } | null = null;
+  let receivedListener: { remove: () => Promise<void> } | null = null;
+  let actionListener: { remove: () => Promise<void> } | null = null;
 
   try {
+    registrationListener = await PushNotifications.addListener(
+      "registration",
+      async (token: Token) => {
+        console.info("[push] FCM token received");
+        await saveNativePushToken(userId, token.value);
+      }
+    );
+
+    registrationErrorListener = await PushNotifications.addListener(
+      "registrationError",
+      (error) => {
+        console.error("[push] registration error", error);
+      }
+    );
+
+    receivedListener = await PushNotifications.addListener(
+      "pushNotificationReceived",
+      async (notification: PushNotificationSchema) => {
+        try {
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                id: Date.now() % 2147483647,
+                title: notification.title ?? "LASI",
+                body: notification.body ?? "New message",
+                channelId: "lasi-chat",
+                extra: notification.data ?? {},
+                schedule: { at: new Date(Date.now() + 100) },
+              },
+            ],
+          });
+        } catch (error) {
+          console.error("[push] local notification error", error);
+        }
+      }
+    );
+
+    actionListener = await PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      (action) => {
+        const target = typeof action.notification.data?.url === "string" ? action.notification.data.url : "/chat";
+        if (typeof window !== "undefined") {
+          window.location.assign(target);
+        }
+      }
+    );
+  } catch (error) {
+    console.error("[push] listener registration failed", error);
+  }
+
+  try {
+    console.info("[push] registering native push");
     await PushNotifications.register();
   } catch (error) {
     console.error("[push] register failed", error);
   }
 
   return async () => {
-    await registrationListener.remove();
-    await registrationErrorListener.remove();
-    await receivedListener.remove();
-    await actionListener.remove();
+    await registrationListener?.remove();
+    await registrationErrorListener?.remove();
+    await receivedListener?.remove();
+    await actionListener?.remove();
   };
 }
 
@@ -134,14 +155,21 @@ export default function NativeBridge() {
 
     void (async () => {
       try {
+        console.info("[native] startup initialization begin");
         await StatusBar.setOverlaysWebView({ overlay: true });
         await StatusBar.setStyle({ style: Style.Dark });
         await SplashScreen.hide({ fadeOutDuration: 220 });
       } catch {
-        // Ignore status bar/splash errors in restricted environments.
+        console.warn("[native] status bar or splash setup failed");
       }
 
-      cleanup = await registerNativePush(user?.id ?? null);
+      try {
+        cleanup = await registerNativePush(user?.id ?? null);
+      } catch (error) {
+        console.error("[native] push bootstrap failed", error);
+      }
+
+      console.info("[native] startup initialization complete");
     })();
 
     return () => {

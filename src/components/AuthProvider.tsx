@@ -23,41 +23,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-
     let isMounted = true;
-    supabase.auth.getSession().then((result: { data: { session: Session | null } }) => {
-      const { data } = result;
-      if (!isMounted) return;
-      setSession(data.session ?? null);
-      setUser(data.session?.user ?? null);
-      setStatus(data.session ? "authenticated" : "unauthenticated");
-    });
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
-      const { data } = result;
-      if (!isMounted) return;
-      setUser(data.user ?? null);
-      if (data.user) {
-        setStatus("authenticated");
-      }
-    });
+    void (async () => {
+      try {
+        console.info("[auth] initializing browser session");
+        const supabase = getSupabaseBrowserClient();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, nextSession: Session | null) => {
-        setSession(nextSession ?? null);
-        void supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
-          const { data } = result;
-          if (!isMounted) return;
-          setUser(data.user ?? nextSession?.user ?? null);
-          setStatus(data.user || nextSession ? "authenticated" : "unauthenticated");
-        });
+        const sessionResult = await supabase.auth.getSession();
+        if (!isMounted) return;
+        setSession(sessionResult.data.session ?? null);
+        setUser(sessionResult.data.session?.user ?? null);
+        setStatus(sessionResult.data.session ? "authenticated" : "unauthenticated");
+
+        const userResult = await supabase.auth.getUser();
+        if (!isMounted) return;
+        setUser(userResult.data.user ?? null);
+        if (userResult.data.user) {
+          setStatus("authenticated");
+        }
+
+        const { data } = supabase.auth.onAuthStateChange(
+          (_event: AuthChangeEvent, nextSession: Session | null) => {
+            setSession(nextSession ?? null);
+            void supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
+              const { data } = result;
+              if (!isMounted) return;
+              setUser(data.user ?? nextSession?.user ?? null);
+              setStatus(data.user || nextSession ? "authenticated" : "unauthenticated");
+            });
+          }
+        );
+
+        subscription = data.subscription;
+      } catch (error) {
+        console.error("[auth] browser session init failed", error);
+        if (!isMounted) return;
+        setSession(null);
+        setUser(null);
+        setStatus("unauthenticated");
       }
-    );
+    })();
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
@@ -67,22 +78,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return "This account is not allowed.";
     }
 
-    const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      return error.message;
+      if (error) {
+        return error.message;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("[auth] sign in failed", error);
+      return "Sign in failed. Please try again.";
     }
-
-    return null;
   };
 
   const signOut = async () => {
-    const supabase = getSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = getSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("[auth] sign out failed", error);
+    }
   };
 
   const value = useMemo(

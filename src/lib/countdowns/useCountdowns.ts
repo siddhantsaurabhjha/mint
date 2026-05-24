@@ -202,6 +202,8 @@ export function useCountdowns({ userId }: { userId?: string | null }) {
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
     const interval = window.setInterval(() => {
       const now = Date.now();
       events.forEach((event) => {

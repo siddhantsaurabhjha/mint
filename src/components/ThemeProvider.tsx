@@ -20,6 +20,10 @@ const isThemeId = (value: string): value is ThemeId =>
   value === "soft-pink";
 
 const getAutoTheme = (): ThemeId => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "midnight-blue";
+  }
+
   const hour = new Date().getHours();
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const isNight = hour >= 19 || hour < 6;
@@ -32,8 +36,35 @@ const getAutoTheme = (): ThemeId => {
 };
 
 const applyTheme = (theme: ThemeId) => {
+  if (typeof document === "undefined") return;
+
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = "dark";
+};
+
+const readStoredMode = (): ThemeMode | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved === "auto" || (saved && isThemeId(saved))) {
+      return saved as ThemeMode;
+    }
+  } catch (error) {
+    console.warn("[theme] failed to read stored mode", error);
+  }
+
+  return null;
+};
+
+const writeStoredMode = (mode: ThemeMode) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(STORAGE_KEY, mode);
+  } catch (error) {
+    console.warn("[theme] failed to persist mode", error);
+  }
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -41,9 +72,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ThemeId>("midnight-blue");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved === "auto" || (saved && isThemeId(saved))) {
-      setMode(saved as ThemeMode);
+    const saved = readStoredMode();
+    if (saved) {
+      setMode(saved);
     }
   }, []);
 
@@ -56,6 +87,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     if (mode === "auto") {
       updateAutoTheme();
+      if (typeof window === "undefined") return undefined;
+
       const interval = window.setInterval(updateAutoTheme, 5 * 60 * 1000);
       window.addEventListener("visibilitychange", updateAutoTheme);
       return () => {
@@ -70,7 +103,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [mode]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    writeStoredMode(mode);
   }, [mode]);
 
   const value = useMemo(
