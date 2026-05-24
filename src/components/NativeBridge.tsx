@@ -11,6 +11,7 @@ import {
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { useAuth } from "@/components/AuthProvider";
+import { ensureFirebaseBootstrap } from "@/lib/pwa/firebaseBootstrap";
 import { saveNativePushToken } from "@/lib/pwa/push";
 
 const PUSH_PERMISSION_KEY = "lasi:native-push-permission-requested";
@@ -37,6 +38,12 @@ function markRequestedPermission(key: string) {
 async function registerNativePush(userId: string | null) {
   if (!Capacitor.isNativePlatform()) return;
   if (!userId) return;
+
+  const firebaseBootstrap = await ensureFirebaseBootstrap();
+  if (!firebaseBootstrap.initialized || !firebaseBootstrap.available) {
+    console.warn("[push] Firebase unavailable, skipping native registration", firebaseBootstrap.error);
+    return;
+  }
 
   try {
     const pushPermissions = await PushNotifications.checkPermissions();
